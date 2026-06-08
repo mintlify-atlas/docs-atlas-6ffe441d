@@ -1,7 +1,7 @@
 ---
-title: "Connect MCP Tool Servers to the Odysseus Agent"
+title: "Connect MCP Tool Servers to the Odysseus Agent Tasks"
 sidebarTitle: "MCP Servers"
-description: "Odysseus supports the Model Context Protocol (MCP). Add custom tool servers so the agent can call external APIs, databases, or services during task execution."
+description: "Add MCP tool servers to the Odysseus agent. Connect external APIs, databases, or services via stdio, SSE, or HTTP and use them during task execution."
 ---
 
 The Odysseus agent can call tools beyond its built-in shell, file, web, and code capabilities. [Model Context Protocol](https://modelcontextprotocol.io) (MCP) is the standard plugin interface for this — each MCP server exposes a set of typed tools that the agent can invoke by name during a task, passing structured arguments and receiving structured results. Odysseus manages MCP servers as persistent connections; tools from all connected servers appear automatically in the agent's toolset.

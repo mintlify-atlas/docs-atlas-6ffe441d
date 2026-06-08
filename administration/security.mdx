@@ -1,5 +1,5 @@
 ---
-title: "Security Hardening and Deployment Best Practices for Odysseus"
+title: "Security Hardening and Best Practices for Odysseus"
 sidebarTitle: "Security"
 description: "Security checklist for Odysseus deployments: authentication, cookie settings, network exposure, data protection, and privilege management."
 ---
@@ -36,7 +36,7 @@ Odysseus is a self-hosted workspace with privileged local capabilities — shell
     Before publishing a fork, run:
     ```bash
     git status --short
-    git check-ignore -v .env data/auth.json data/app.db logs/compound.log
+    git check-ignore -v .env data/auth.json data/app.db logs/compound.log odysseus.db
     ```
   </Step>
 
@@ -79,7 +79,7 @@ Odysseus is a self-hosted workspace with privileged local capabilities — shell
     Run this before any `git push` to a public remote:
     ```bash
     git status --short
-    git grep -n -I -E "(sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._~+/-]{20,})" \
+    git grep -n -I -E "(sk-[A-Za-z0-9_-]{20,}|xox[baprs]-|AIza[0-9A-Za-z_-]{20,}|Bearer [A-Za-z0-9._~+/-]{20,})" \
       -- . ':!static/lib/**' ':!package-lock.json'
     ```
     Only `.env.example`, source, docs, tests, and static assets should ever be committed.

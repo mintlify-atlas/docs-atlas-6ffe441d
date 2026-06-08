@@ -57,6 +57,7 @@ This step is optional but recommended — it gives you a well-commented template
 | `APP_PORT` | `7000` | Docker Compose host port for the Odysseus web UI. Change if port `7000` is already in use. |
 | `LOCALHOST_BYPASS` | `false` | Development-only auth bypass for direct loopback requests. Keep `false` for Docker, LAN, and any shared or network-accessible deployment. Tunnel/proxy-forwarded connections are excluded automatically even when this is `true`. |
 | `SECURE_COOKIES` | `false` | Mark session cookies as `Secure`. Set to `true` when Odysseus is served through HTTPS at a trusted reverse proxy or private access gateway. |
+| `ODYSSEUS_ADMIN_USER` | `admin` | Pre-seed the admin account username before first boot. If unset, the account is created with the username `admin`. Only used during initial setup when `data/auth.json` does not yet exist. |
 | `ODYSSEUS_ADMIN_PASSWORD` | *(random)* | Pre-seed the admin account password before first boot. If unset, `setup.py` generates a random password and prints it to the terminal. Do not commit a real password to version control. |
 | `ALLOWED_ORIGINS` | `http://localhost,http://127.0.0.1` | Comma-separated list of CORS allowed origins. Restrict to your public origin in production, e.g. `https://odysseus.yourdomain.com`. |
 
@@ -78,7 +79,7 @@ This step is optional but recommended — it gives you a well-commented template
 | `EMBEDDING_API_KEY` | *(unset)* | API key for the embedding endpoint, if one is required. |
 | `EMBEDDING_MODEL` | *(unset)* | Embedding model name to use at the `EMBEDDING_URL` endpoint, e.g. `all-minilm:l6-v2`. Must be available at the configured endpoint. |
 | `FASTEMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Local fallback embedding model using fastembed (ONNX). Used automatically when no HTTP embedding API is reachable. Downloads ~50 MB on first use. |
-| `FASTEMBED_CACHE_PATH` | `~/.cache/fastembed` | Local cache directory for fastembed model files. Defaults to the fastembed library default. Override to store model files on a specific volume. |
+| `FASTEMBED_CACHE_PATH` | `data/fastembed_cache` | Local cache directory for fastembed model files. Defaults to `fastembed_cache/` under `ODYSSEUS_DATA_DIR`. Override to store model files on a specific volume. |
 
 ### Miscellaneous
 

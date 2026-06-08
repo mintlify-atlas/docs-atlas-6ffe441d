@@ -1,5 +1,5 @@
 ---
-title: "Autonomous Agent Mode with MCP Tool Support"
+title: "Autonomous Agent Mode with Tools and MCP in Odysseus"
 sidebarTitle: "Agent"
 description: "Odysseus Agent is a multi-round autonomous loop that uses tools — web search, shell, files, memory, and MCP servers — to complete complex tasks end-to-end."
 ---
@@ -19,7 +19,7 @@ The model can use multiple tool calls per round, and all tool activity is shown 
 
 ## Built-in tools
 
-The following tools are available to the agent by default. Which tools appear in any given turn is determined by a RAG-based retrieval step that selects only the tools relevant to your request — keeping the context lean for smaller models.
+The following tools are available to the agent. Which tools appear in any given turn is determined by a RAG-based retrieval step that selects only the tools relevant to your request — keeping the context lean for smaller models. Several tools (shell, file access, memory, email, calendar) are restricted to admin users by default; see the [Permissions](#permissions-and-privilege-controls) section below.
 
 <AccordionGroup>
   <Accordion title="web_search — Search the web" icon="magnifying-glass">
@@ -34,8 +34,8 @@ The following tools are available to the agent by default. Which tools appear in
   <Accordion title="python — Execute Python code" icon="code">
     Runs arbitrary Python in the server process. Useful for computation, data processing, and scripting. Subject to the same privilege controls as bash.
   </Accordion>
-  <Accordion title="read_file / write_file / edit_file — File access" icon="file">
-    Read existing files, write new files, or make precise find-and-replace edits to existing files. Write and edit show a before/after diff in the tool bubble. File access is subject to the configured workspace, when one is set.
+  <Accordion title="read_file / write_file / edit_file / grep / glob / ls — File access" icon="file">
+    Read existing files, write new files, or make precise find-and-replace edits to existing files. Write and edit show a before/after diff in the tool bubble. `grep`, `glob`, and `ls` provide search and directory listing without shelling out to bash. File access is subject to the configured workspace, when one is set.
   </Accordion>
   <Accordion title="create_document / edit_document / update_document — Document editor" icon="pen-to-square">
     Create and edit documents in the Odysseus document editor panel, with full version history. Long-form content (code, reports, essays) goes here rather than the chat window.
@@ -81,10 +81,12 @@ Tool access is gated per user:
 | Tool | Default (non-admin) | Admin |
 |---|---|---|
 | `bash` / `python` (shell) | ❌ | ✅ |
-| `read_file` / `write_file` | ❌ | ✅ |
+| `read_file` / `write_file` / `edit_file` / `grep` / `glob` / `ls` | ❌ | ✅ |
 | `web_search`, `web_fetch` | ✅ | ✅ |
-| `manage_memory` | ✅ | ✅ |
-| `create_document` | ✅ | ✅ |
+| `manage_memory`, `manage_skills` | ❌ | ✅ |
+| `manage_tasks`, `manage_calendar` | ❌ | ✅ |
+| `create_document`, `edit_document` | ✅ | ✅ |
+| Email tools (`list_emails`, `send_email`, etc.) | ❌ | ✅ |
 | MCP server tools | ❌ | ✅ |
 
 Administrators can grant per-user privileges from the user management panel. See [Users & Auth](/administration/users-auth) for details.

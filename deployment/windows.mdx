@@ -1,7 +1,7 @@
 ---
-title: "Run Odysseus Natively on Windows"
+title: "Run Odysseus Natively on Windows (No Docker Required)"
 sidebarTitle: "Windows"
-description: "Deploy Odysseus on Windows using the one-command PowerShell launcher or a manual Python virtual environment setup."
+description: "Deploy Odysseus on Windows using the one-command PowerShell launcher or a manual Python virtual environment setup. Python 3.11+ required."
 ---
 
 Odysseus runs natively on Windows without Docker or WSL2. The core features — chat, agent, memory, documents, email, calendar, and deep research — work fully out of the box. The one-command PowerShell launcher handles virtualenv creation, dependency installation, first-time setup, and server start in a single step, and it is safe to re-run at any time.
@@ -37,7 +37,7 @@ Odysseus runs natively on Windows without Docker or WSL2. The core features — 
   </Step>
 
   <Step title="Open the web UI">
-    ```
+    ```text
     http://localhost:7000
     ```
     Log in with the admin password printed in the previous step, then change it in **Settings**. Everything else — models, search, email, calendar — is configured from inside the app.

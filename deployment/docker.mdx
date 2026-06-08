@@ -1,5 +1,5 @@
 ---
-title: "Deploy Odysseus with Docker Compose"
+title: "Deploy Odysseus with Docker Compose — Highly Recommended"
 sidebarTitle: "Docker"
 description: "Run Odysseus and its bundled services (ChromaDB, SearXNG, ntfy) with a single docker compose up command. Recommended for most deployments."
 ---
@@ -38,7 +38,7 @@ Docker is the recommended way to run Odysseus for most users. A single `docker c
   <Step title="Open the web UI">
     Once the containers are healthy, open:
 
-    ```
+    ```text
     http://localhost:7000
     ```
 
@@ -105,7 +105,7 @@ docker compose restart
 
 All user data — the SQLite database, uploads, memory, model cache, installed serve engines, and SSH keys — is stored in the `./data/` directory on your host, mounted into the container as a bind volume. The `./logs/` directory is also persisted. Container recreation, image rebuilds, and `docker compose down` do not delete this data.
 
-```
+```text
 ./data/
 ├── app.db            # Sessions, messages, documents
 ├── auth.json         # User accounts and privileges

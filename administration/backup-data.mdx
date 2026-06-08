@@ -1,7 +1,7 @@
 ---
-title: "Back Up and Restore Odysseus Data"
+title: "Backing Up and Restoring Your Odysseus Instance Data"
 sidebarTitle: "Backup & Data"
-description: "All Odysseus user data lives in the data/ directory — sessions, messages, memory, uploads, and settings. Back it up with standard file copy or the built-in backup tool."
+description: "Back up Odysseus data with a simple copy of the data/ directory or the built-in export tool. Covers manual backups, restore steps, and encryption."
 ---
 
 All Odysseus user data lives in the `data/` directory at the root of the project. This includes your chat history, uploaded files, memories, skills, settings, user accounts, and anything else that persists between restarts. The directory is gitignored by default, so it is never included in commits or forks. Keeping a regular backup of `data/` is the only thing you need to do to protect your Odysseus data.
@@ -17,7 +17,8 @@ All Odysseus user data lives in the `data/` directory at the root of the project
 | `personal_docs/` | Personal documents and runbooks |
 | `chroma/` | ChromaDB vector store data (used for semantic memory search) |
 | `settings.json` | App settings |
-| `auth.json` | User accounts and session tokens |
+| `auth.json` | User accounts (credentials, roles, privileges) |
+| `sessions.json` | Active session tokens |
 | `presets.json` | Saved chat presets |
 
 <Warning>

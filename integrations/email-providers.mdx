@@ -1,7 +1,7 @@
 ---
-title: "Add Email Accounts to Odysseus via IMAP and SMTP"
+title: "Connect Email Accounts to Odysseus via IMAP and SMTP"
 sidebarTitle: "Email Providers"
-description: "Odysseus email uses standard IMAP/SMTP with username and password. Works with Gmail app passwords, Fastmail, ProtonMail Bridge, and most IMAP-enabled providers."
+description: "Connect Gmail, Fastmail, ProtonMail Bridge, and other providers to Odysseus using standard IMAP/SMTP with app passwords or mailbox credentials."
 ---
 
 Odysseus includes a full IMAP/SMTP inbox with AI triage built in. It connects to email using standard IMAP for reading and SMTP for sending, authenticated with a username and password (or app password). This works with the overwhelming majority of email providers — any service that supports IMAP access and has not disabled password authentication can be added.
@@ -101,7 +101,7 @@ Odysseus includes a full IMAP/SMTP inbox with AI triage built in. It connects to
   - `IMAP: AUTHENTICATE failed`
   - `SMTP: 535 5.7.139 Authentication unsuccessful, basic authentication is disabled`
 
-  This is a Microsoft policy, not a configuration error. OAuth and Microsoft Graph Mail integration is not yet available in Odysseus, so most Outlook and Microsoft 365 accounts cannot currently be added through the IMAP/SMTP form. Use a different provider, or check whether your specific tenant still permits app passwords for IMAP access.
+  This is a Microsoft policy, not a configuration error. Odysseus does not support Microsoft OAuth or Graph Mail yet, so Outlook and Microsoft 365 accounts cannot currently be added through the IMAP/SMTP form. Use another email provider with app-password support, or track the future Microsoft Graph OAuth integration.
 </Warning>
 
 ## AI triage features

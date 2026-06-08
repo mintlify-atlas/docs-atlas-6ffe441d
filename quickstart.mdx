@@ -170,7 +170,7 @@ Odysseus has no bundled model — you connect it to a model provider after first
 
 1. Go to **Settings → Models** (or open **Settings** and search for "Models").
 2. Add an endpoint. For a locally-running Ollama instance, use:
-   ```
+   ```text
    http://localhost:11434/v1
    ```
    If Odysseus is running inside Docker and Ollama is on the host, use `http://host.docker.internal:11434/v1` instead, and make sure Ollama is listening on all interfaces (`OLLAMA_HOST=0.0.0.0:11434 ollama serve`).

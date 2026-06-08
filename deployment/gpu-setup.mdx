@@ -1,5 +1,5 @@
 ---
-title: "Enable GPU Passthrough for Odysseus in Docker"
+title: "Enable NVIDIA and AMD GPU Passthrough for Odysseus Docker"
 sidebarTitle: "GPU Setup"
 description: "Configure NVIDIA or AMD GPU passthrough to the Odysseus Docker container so Cookbook can download and serve models using CUDA or ROCm acceleration."
 ---
@@ -75,7 +75,7 @@ You should see your GPU listed. If you see an error, the overlay is active but p
 
 These tools often accept only a single Compose file and do not reliably support the `COMPOSE_FILE` overlay mechanism. Use the provided standalone file instead, which bundles the base stack and the NVIDIA settings together:
 
-```
+```text
 docker-compose.gpu-nvidia.yml
 ```
 
@@ -134,7 +134,7 @@ You should see `/dev/kfd` and at least one `/dev/dri/renderD*` entry. If not, ch
 
 For Portainer, Coolify, and similar tools, use the standalone file:
 
-```
+```text
 docker-compose.gpu-amd.yml
 ```
 

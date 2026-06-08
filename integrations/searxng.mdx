@@ -1,5 +1,5 @@
 ---
-title: "Configure SearXNG Web Search for Odysseus"
+title: "Configure SearXNG Web Search in Odysseus Self-Hosted"
 sidebarTitle: "SearXNG"
 description: "Odysseus uses SearXNG as its web search backend for Agent, Deep Research, and direct search. Docker Compose bundles SearXNG automatically."
 ---
@@ -51,7 +51,7 @@ Set `SEARXNG_INSTANCE` to the full base URL of the instance. Odysseus will appen
 
 ## SEARXNG_SECRET
 
-`SEARXNG_SECRET` is SearXNG's internal cookie and CSRF protection secret. When running in Docker, Odysseus generates a random secret on first boot and stores it in the `searxng-data` volume — no action required. For native installs you can leave it unset (SearXNG will generate its own), or pin it explicitly if you want reproducible behavior across restarts:
+`SEARXNG_SECRET` is SearXNG's internal cookie and CSRF protection secret. When running in Docker, a random secret is generated on first boot and stored in the `searxng-data` volume — no action required. For native installs you can leave it unset (SearXNG will generate its own), or pin it explicitly if you want reproducible behavior across restarts:
 
 ```bash
 # .env

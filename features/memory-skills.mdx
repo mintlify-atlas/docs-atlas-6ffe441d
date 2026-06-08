@@ -1,7 +1,7 @@
 ---
-title: "Persistent Memory and Agent Skills in Odysseus"
+title: "Persistent Memory and Reusable Agent Skills in Odysseus"
 sidebarTitle: "Memory & Skills"
-description: "Odysseus Memory stores facts and context in ChromaDB using vector and keyword retrieval. Skills are reusable prompt templates that teach the agent new behaviors."
+description: "Odysseus Memory stores facts and context in ChromaDB with vector and keyword retrieval. Skills are reusable procedures that teach the agent new behaviors."
 ---
 
 Odysseus Memory gives the agent a persistent understanding of who you are, what you prefer, and what context matters for your work. Skills let you codify recurring procedures — the agent consults them automatically whenever a request matches, so it can reliably repeat complex multi-step workflows without you re-explaining them every time. Together, Memory and Skills make the agent progressively better at being useful to you specifically.
@@ -112,7 +112,7 @@ Open the **Skills** panel from the sidebar (or ask the agent to "open skills"). 
 
 The agent can also manage skills directly:
 
-```
+```text
 manage_skills action=list
 manage_skills action=view name=my-skill-name
 manage_skills action=add name=new-skill ...

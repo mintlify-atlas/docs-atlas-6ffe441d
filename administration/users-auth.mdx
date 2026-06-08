@@ -1,5 +1,5 @@
 ---
-title: "User Accounts and Authentication in Odysseus"
+title: "Odysseus User Accounts, Roles, and Authentication Setup"
 sidebarTitle: "Users & Auth"
 description: "Odysseus supports multi-user accounts with role-based admin/user privileges, per-user feature controls, optional 2FA, and session token management."
 ---
@@ -30,7 +30,7 @@ Pre-seeding a password in `.env` is useful for automated installs, but do not co
 
 ## Reviewing `data/auth.json` After First Boot
 
-All user accounts and session state are stored in `data/auth.json`. After your first login, review this file and confirm the following:
+User accounts are stored in `data/auth.json`; active session tokens are stored in `data/sessions.json`. After your first login, review `data/auth.json` and confirm the following:
 
 - **Open signup is off.** `signup_enabled` defaults to `false`. Leave it that way unless you explicitly want anyone who can reach the login page to create an account. You can toggle it in **Settings → Users → Open Registration** (admin only).
 - **Only your account is admin.** The first-run setup makes the initial account an admin. Any subsequently created accounts are non-admin by default — keep it that way.

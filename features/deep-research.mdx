@@ -1,7 +1,7 @@
 ---
 title: "Deep Research: Iterative AI-Powered Research Reports"
 sidebarTitle: "Deep Research"
-description: "Odysseus Deep Research runs a multi-step Think→Search→Extract→Synthesize loop, gathering and reading web sources to produce a structured visual report."
+description: "Odysseus Deep Research runs an iterative Plan→Think→Search→Extract→Synthesize loop to gather sources and produce a detailed, structured research report."
 ---
 
 Deep Research turns a question into a structured, magazine-quality report by having the LLM drive every decision in a multi-step iterative loop. Adapted from [Tongyi DeepResearch](https://github.com/Alibaba-NLP/DeepResearch) (Alibaba), it goes far beyond a single web search: it plans a research strategy, generates targeted queries, fetches and reads sources, synthesizes findings into an evolving report, and decides when it has enough coverage — all autonomously.
@@ -10,7 +10,7 @@ Deep Research turns a question into a structured, magazine-quality report by hav
 
 Deep Research runs the following loop for up to the configured number of rounds:
 
-```
+```text
 Plan → Think → Search → Extract → Synthesize → Decide (continue or stop)
                  ↑___________________________________|
 ```
