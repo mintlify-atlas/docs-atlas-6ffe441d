@@ -1,0 +1,173 @@
+---
+title: "Expose Odysseus Over HTTPS on a LAN or Tailscale"
+sidebarTitle: "HTTPS & Network"
+description: "Configure Odysseus for HTTPS access on a local network, Tailscale, or behind a reverse proxy like Caddy, nginx, Traefik, or Cloudflare Access."
+---
+
+Odysseus serves plain HTTP on its app port. HTTPS termination is handled outside the app — either by passing it directly with `uvicorn`'s built-in SSL support (suitable for LAN/Tailscale with mkcert), or by placing a reverse proxy or private access gateway in front of it. This page covers both patterns, plus the security settings you should enable before making Odysseus accessible beyond your local machine.
+
+<Warning>
+  Do not expose Odysseus directly to the public internet without HTTPS and a trusted reverse proxy or access layer. Odysseus has powerful local tools — shell access, file uploads, model downloads, email and calendar integrations, and API tokens. Treat any network-accessible deployment like an admin console.
+</Warning>
+
+## Default Binding
+
+By default, Docker Compose and the native launchers bind Odysseus to `127.0.0.1` — only the local machine can reach it. To make Odysseus reachable from other devices, change the bind address:
+
+```bash
+# In .env (Docker Compose and start-macos.sh both read this)
+APP_BIND=0.0.0.0
+
+# Or as an environment variable prefix for start-macos.sh
+ODYSSEUS_HOST=0.0.0.0 ./start-macos.sh
+
+# Or as a uvicorn flag for native Linux runs
+python -m uvicorn app:app --host 0.0.0.0 --port 7000
+```
+
+## Security Checklist Before Going Beyond Localhost
+
+Enable these settings in `.env` before binding to `0.0.0.0`:
+
+| Variable | Recommended value | Purpose |
+|----------|-------------------|---------|
+| `AUTH_ENABLED` | `true` | Require login. This is the default; do not disable it. |
+| `LOCALHOST_BYPASS` | `false` | Disable the development-only auth bypass for loopback requests. This is the default. |
+| `SECURE_COOKIES` | `true` | Mark session cookies as `Secure`. Set this when Odysseus is served through HTTPS at a trusted proxy or private access gateway. |
+
+```bash
+AUTH_ENABLED=true
+LOCALHOST_BYPASS=false
+SECURE_COOKIES=true
+```
+
+## Option 1 — mkcert for LAN / Tailscale (Self-Signed CA)
+
+[mkcert](https://github.com/FiloSottile/mkcert) generates locally-trusted TLS certificates signed by a CA it installs into your system and browser trust stores. This is well-suited for home-lab and Tailscale setups where you control all the devices.
+
+<Steps>
+  <Step title="Bind Odysseus to all interfaces">
+    Add to `.env`:
+    ```bash
+    APP_BIND=0.0.0.0
+    AUTH_ENABLED=true
+    LOCALHOST_BYPASS=false
+    SECURE_COOKIES=true
+    ```
+  </Step>
+
+  <Step title="Install mkcert and create the local CA">
+    ```bash
+    # macOS
+    brew install mkcert
+    mkcert -install
+
+    # Linux (binary from GitHub releases, or your distro's package)
+    mkcert -install
+    ```
+  </Step>
+
+  <Step title="Generate a certificate for your IPs and hostnames">
+    Replace the example IPs and hostnames with your actual LAN IP and/or Tailscale IP:
+    ```bash
+    mkcert -cert-file cert.pem -key-file key.pem 192.168.1.100 100.x.y.z odysseus.local
+    ```
+    Both `cert.pem` and `key.pem` will be created in the current directory. Keep `key.pem` private.
+  </Step>
+
+  <Step title="Start uvicorn with the certificate">
+    ```bash
+    python -m uvicorn app:app \
+      --host 0.0.0.0 \
+      --port 7000 \
+      --ssl-certfile=cert.pem \
+      --ssl-keyfile=key.pem
+    ```
+    Odysseus is now reachable at `https://192.168.1.100:7000` (or your Tailscale IP) from any device that trusts the mkcert CA.
+  </Step>
+
+  <Step title="Trust the CA on other devices">
+    Devices that browse to Odysseus need to trust the mkcert root CA. The CA certificate is at the path printed by `mkcert -CAROOT`.
+
+    **iOS / iPadOS:**
+    1. Email yourself the `rootCA.pem` file (rename to `rootCA.crt` if needed).
+    2. Tap the attachment on your iPhone/iPad — iOS will prompt to install the configuration profile.
+    3. Go to **Settings → General → VPN & Device Management** and install the profile.
+    4. Go to **Settings → General → About → Certificate Trust Settings** and enable full trust for the mkcert CA.
+
+    **Android:** Download the `.pem`, then **Settings → Security → Install a certificate → CA certificate**.
+
+    **Windows:** Double-click `rootCA.pem` → *Install Certificate* → *Local Machine* → *Trusted Root Certification Authorities*.
+
+    **Other Linux machines:** Copy `rootCA.pem` to `/usr/local/share/ca-certificates/mkcert-rootCA.crt` and run `sudo update-ca-certificates`.
+  </Step>
+</Steps>
+
+<Tip>
+  Tailscale + `AUTH_ENABLED=true` is a simple and secure way to access Odysseus from mobile. Generate the certificate for your Tailscale IP (`tailscale ip -4`), bind Odysseus to `0.0.0.0`, and only devices on your Tailscale network can reach it.
+</Tip>
+
+## Option 2 — Reverse Proxy
+
+The typical production or private-network pattern is:
+
+1. Keep Odysseus on loopback: `127.0.0.1:7000`
+2. Terminate HTTPS at a trusted reverse proxy or private access gateway
+3. The proxy forwards requests to `http://127.0.0.1:7000`
+
+Odysseus is compatible with any standard HTTP/1.1 proxy. Common options include:
+
+<CardGroup cols={2}>
+  <Card title="Caddy" icon="server">
+    Automatic HTTPS via Let's Encrypt. Minimal config: `reverse_proxy 127.0.0.1:7000`.
+  </Card>
+  <Card title="nginx" icon="server">
+    Widely deployed. Use `proxy_pass http://127.0.0.1:7000;` with a standard SSL server block.
+  </Card>
+  <Card title="Traefik" icon="server">
+    Label-based config with automatic certificate management. Works well alongside Docker.
+  </Card>
+  <Card title="Cloudflare Access / Tunnel" icon="shield">
+    Zero-trust access without opening any inbound ports. Cloudflare issues the TLS certificate and enforces identity before traffic reaches Odysseus.
+  </Card>
+</CardGroup>
+
+When using a reverse proxy, keep these settings in `.env`:
+
+```bash
+AUTH_ENABLED=true
+LOCALHOST_BYPASS=false
+SECURE_COOKIES=true
+```
+
+`SECURE_COOKIES=true` is important here — it tells Odysseus to set the `Secure` flag on session cookies so they are only transmitted over the HTTPS connection the proxy provides.
+
+## Internal-Only Ports
+
+Keep all bundled service ports internal. Expose only the Odysseus web/API entrypoint through your trusted proxy or access layer.
+
+| Port | Service | Notes |
+|------|---------|-------|
+| `7000` | Odysseus | Expose only via reverse proxy or access gateway |
+| `8080` | SearXNG | Keep internal-only |
+| `8091` | ntfy | Keep internal-only; can optionally bind to a Tailscale IP via `NTFY_BIND` |
+| `8100` | ChromaDB (host port) | Keep internal-only |
+| `11434` | Ollama | Keep internal-only |
+| `8000–8020` | Common local model/provider APIs | Keep internal-only |
+
+In Docker Compose, all bundled services bind to `127.0.0.1` by default. If you need ntfy accessible from other devices (for mobile push notifications), you can bind it to your Tailscale IP specifically:
+
+```bash
+NTFY_BIND=100.x.y.z
+NTFY_BASE_URL=http://100.x.y.z:8091
+```
+
+## CORS and Allowed Origins
+
+If you access Odysseus from a hostname or port that differs from the default, add it to the `ALLOWED_ORIGINS` list in `.env`:
+
+```bash
+ALLOWED_ORIGINS=https://odysseus.yourdomain.com,https://192.168.1.100:7000
+```
+
+The default allows `localhost` and `127.0.0.1` only.

@@ -1,0 +1,129 @@
+---
+title: "User Accounts and Authentication in Odysseus"
+sidebarTitle: "Users & Auth"
+description: "Odysseus supports multi-user accounts with role-based admin/user privileges, per-user feature controls, optional 2FA, and session token management."
+---
+
+Odysseus ships with a full multi-user authentication system. Every deployment has at least one admin account, and the admin can create additional accounts with fine-grained per-user privileges. Two roles exist: **admin**, which has unrestricted access to every feature and setting, and **user**, whose capabilities are set explicitly by the admin. Authentication is handled with bcrypt password hashing, 7-day session cookies, and optional TOTP-based two-factor authentication.
+
+## First-Run Setup
+
+On first boot, Odysseus automatically creates an admin account and prints a one-time temporary password to the terminal. For Docker deployments, the same line appears in the container logs.
+
+```bash
+docker compose logs odysseus | grep -i "admin"
+```
+
+Log in at `http://localhost:7000` with that temporary password, then change it immediately in **Settings → Account**.
+
+The admin username defaults to `admin`. You can override this before first boot by setting `ODYSSEUS_ADMIN_USER` in your `.env` file, or by pre-seeding the password with `ODYSSEUS_ADMIN_PASSWORD`.
+
+```bash
+# .env
+ODYSSEUS_ADMIN_USER=myname
+ODYSSEUS_ADMIN_PASSWORD=change_me_before_first_boot
+```
+
+<Warning>
+Pre-seeding a password in `.env` is useful for automated installs, but do not commit a real password to source control. Remove or blank `ODYSSEUS_ADMIN_PASSWORD` from `.env` after the first boot.
+</Warning>
+
+## Reviewing `data/auth.json` After First Boot
+
+All user accounts and session state are stored in `data/auth.json`. After your first login, review this file and confirm the following:
+
+- **Open signup is off.** `signup_enabled` defaults to `false`. Leave it that way unless you explicitly want anyone who can reach the login page to create an account. You can toggle it in **Settings → Users → Open Registration** (admin only).
+- **Only your account is admin.** The first-run setup makes the initial account an admin. Any subsequently created accounts are non-admin by default — keep it that way.
+- **Demo or test accounts are non-admin.** If you create throwaway accounts for testing, ensure their `is_admin` flag is `false` and review their assigned privileges.
+
+## Reserved Usernames
+
+The following usernames cannot be registered or renamed into — they are reserved for internal use by the authentication and middleware layer:
+
+| Username | Why it is reserved |
+|---|---|
+| `internal-tool` | Used by the in-process agent tool loopback; any request with this username is granted admin unconditionally by `require_admin`. A real account with this name would silently pass every admin check. |
+| `api` | Used as the bearer-token owner-attribution sentinel. |
+| `demo` | Part of the synthetic-owner set used by the assistant and task scheduler. |
+| `system` | Part of the synthetic-owner set used by the assistant and task scheduler. |
+
+Attempting to create or rename a user to any of these names will be silently rejected.
+
+## Admin vs. User Roles
+
+<CardGroup cols={2}>
+  <Card title="Admin" icon="shield-halved">
+    Full access to all features: shell and file tools, MCP management, API tokens and webhooks, model and cookbook serving, backup and vault, and all app settings. Admins bypass per-user privilege checks entirely.
+  </Card>
+  <Card title="User" icon="user">
+    Standard features with per-user privilege controls. Shell, file read/write, email, MCP tools, calendar, token management, model serving, vault, and app settings are off by default for non-admin users.
+  </Card>
+</CardGroup>
+
+## Per-User Privileges
+
+Each non-admin account has a set of privileges that control which features they can access. Admins always get full access regardless of stored privilege values. The defaults applied to new non-admin accounts are:
+
+| Privilege | Default | Description |
+|---|---|---|
+| `can_use_agent` | `true` | Access to the AI agent and its tools |
+| `can_use_browser` | `true` | Browser tool for fetching and navigating web pages |
+| `can_use_bash` | `false` | Shell / Python execution (high risk — admin only by default) |
+| `can_use_documents` | `true` | Document editor |
+| `can_use_research` | `true` | Deep Research mode |
+| `can_generate_images` | `true` | Image generation |
+| `can_manage_memory` | `true` | Add, edit, and delete persistent memories |
+| `max_messages_per_day` | `0` | Daily message limit; `0` means unlimited |
+| `allowed_models` | `[]` | Allowlist of model IDs; empty means no restriction |
+| `allowed_models_restricted` | `false` | Enforce the `allowed_models` allowlist |
+
+<Note>
+Admin accounts ignore privilege settings. Privilege controls only apply to non-admin users. Admins always have access to shell, file, MCP, and all other tools.
+</Note>
+
+## Managing Users
+
+User management is available to admins at **Settings → Users**. From there you can:
+
+- **Create** a new account (username, password, admin flag, and initial privileges)
+- **Edit** an existing account's privileges
+- **Delete** an account (immediately revokes all active sessions and API tokens belonging to that user)
+- **Rename** a user (migrates all owned data to the new username)
+
+New accounts require a password of at least 8 characters.
+
+## Two-Factor Authentication (2FA)
+
+TOTP-based two-factor authentication is available for any account. Enable it per-account in **Settings → Security → Two-Factor Authentication**.
+
+The setup flow generates a TOTP secret, displays a QR code to scan with any authenticator app (Google Authenticator, Authy, 1Password, etc.), and confirms the code before activating 2FA. On confirmation, Odysseus issues **8 single-use backup codes** — save these somewhere safe in case you lose access to your authenticator app.
+
+Once enabled, the login flow asks for a password first. If the password is correct, the server asks for the current TOTP code before issuing a session. Disabling 2FA requires password confirmation.
+
+<Tip>
+Enable 2FA on your admin account, especially for any deployment accessible beyond localhost.
+</Tip>
+
+## Session Tokens
+
+Session tokens have a **7-day TTL**. When the TTL expires, the cookie becomes invalid and the user is redirected to the login page on their next request.
+
+A few other events invalidate sessions early:
+
+- **Password change** — all other active sessions for that user are revoked immediately; the current session is preserved so you are not logged out mid-change.
+- **Account deletion** — all active sessions and API tokens belonging to the deleted user are purged on the next request that references them.
+- **User rename** — active sessions are migrated to the new username in-place; no re-login is required.
+
+## Security Settings Relevant to Auth
+
+Two `.env` variables directly affect authentication behaviour:
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH_ENABLED` | `true` | Enables the login system. Setting this to `false` disables all authentication checks — never do this on a network-accessible deployment. |
+| `LOCALHOST_BYPASS` | `false` | Development-only bypass that skips auth for loopback requests. Keep `false` for Docker, LAN, reverse-proxy, and any shared deployment. |
+| `SECURE_COOKIES` | `false` | Marks session cookies as `Secure`. Set to `true` when Odysseus is served behind HTTPS at a trusted reverse proxy. |
+
+<Warning>
+`AUTH_ENABLED` must remain `true` for any deployment reachable over a network. Setting it to `false` removes all authentication from every route.
+</Warning>

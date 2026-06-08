@@ -1,0 +1,92 @@
+---
+title: "API Tokens for Programmatic Access to Odysseus"
+sidebarTitle: "API Tokens"
+description: "Create bearer API tokens to authenticate programmatic access to Odysseus endpoints. Admin-only feature with per-token naming, scoping, and revocation."
+---
+
+API tokens let external scripts, automation pipelines, and integrations call Odysseus endpoints without an interactive login session. Instead of a browser cookie, the caller presents a bearer token in the `Authorization` header. Tokens are created, named, scoped, and revoked from the admin panel — no `.env` changes required. This is an admin-only feature: only accounts with the admin role can create or manage tokens.
+
+## Creating a Token
+
+1. Go to **Settings → API Tokens**.
+2. Click **Create Token**.
+3. Give the token a descriptive name (e.g. `automation-scripts`, `mobile-companion`, `ci-pipeline`).
+4. Optionally select a **profile** or individual **scopes** (see below).
+5. Click **Create** and immediately copy the token value shown.
+
+<Warning>
+The full token value is shown **only once** at creation time. It is stored as a bcrypt hash — Odysseus cannot recover or display it again. If you lose the token, delete it and create a new one.
+</Warning>
+
+Token values always begin with the `ody_` prefix, for example:
+
+```
+ody_Ax7kLmN9qRsTuVwXyZ0aBcDeFgHiJkLmNoPqRsT
+```
+
+## Using a Token
+
+Pass the token as a bearer credential in the `Authorization` header on any API request:
+
+```bash
+curl -H 'Authorization: Bearer <your-token>' http://localhost:7000/api/sessions
+```
+
+Tokens authenticate over the same routes as browser sessions. An authenticated API request can access any endpoint that the token's scopes permit.
+
+## Token Scopes
+
+Every token is issued with one or more scopes that limit which endpoints the token can reach. You can choose a named **profile** (a predefined scope bundle) or select scopes individually.
+
+**Available profiles:**
+
+| Profile | Scopes granted |
+|---|---|
+| `chat` | `chat` |
+| `codex_todos` | `todos:read`, `todos:write` |
+| `codex_email_drafts` | `email:read`, `email:draft`, `documents:read`, `documents:write` |
+
+**All available individual scopes:**
+
+| Scope | Access granted |
+|---|---|
+| `chat` | Start and continue chat/agent sessions |
+| `todos:read` | Read tasks and to-do items |
+| `todos:write` | Create and update tasks |
+| `documents:read` | Read documents |
+| `documents:write` | Create and edit documents |
+| `email:read` | Read email messages |
+| `email:draft` | Create email draft replies |
+| `email:send` | Send email |
+| `calendar:read` | Read calendar events |
+| `calendar:write` | Create and update calendar events |
+| `memory:read` | Read persistent memories |
+| `memory:write` | Add and update memories |
+
+<Note>
+Write scopes automatically include their corresponding read scope. For example, granting `todos:write` always includes `todos:read`, even if you did not select it explicitly.
+</Note>
+
+## One Token Per Integration
+
+Create a separate token for each integration or script. This makes it easy to revoke access for a single consumer without affecting others, and gives you a clear audit trail of which token is used where.
+
+```
+automation-scripts  →  ody_Ax7kLmN9...
+mobile-companion    →  ody_Bq3rJpK8...
+ci-pipeline         →  ody_Cz9mNwL4...
+```
+
+## Revoking a Token
+
+Go to **Settings → API Tokens**, find the token by name or its visible prefix, and click **Delete**. Revocation is immediate — the token stops authenticating on the next request that uses it.
+
+When an admin account is deleted, all API tokens owned by that user are automatically revoked.
+
+## Webhook Tokens
+
+Webhooks use a separate token mechanism managed at **Settings → Webhooks**. Webhook tokens are not the same as API tokens and are not listed or managed from the API Tokens page.
+
+<Warning>
+Treat API tokens like passwords. Do not commit them to source control, paste them into shared chats, include them in screenshots, or store them in unencrypted notes. If a token is ever exposed, delete it immediately and create a replacement.
+</Warning>

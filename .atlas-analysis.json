@@ -1,0 +1,103 @@
+{
+  "projectType": "saas",
+  "projectName": "Odysseus",
+  "projectDescription": "A self-hosted, privacy-first AI workspace featuring chat, autonomous agents, deep research, document editing, email, calendar, and local model management — all running on your own hardware.",
+  "theme": "luma",
+  "primaryColor": "#4F7CFF",
+  "lightColor": "#EEF2FF",
+  "darkColor": "#1A1F3C",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/chat",
+              "features/agent",
+              "features/cookbook",
+              "features/deep-research",
+              "features/documents",
+              "features/email-calendar",
+              "features/memory-skills",
+              "features/notes-tasks"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/linux-macos",
+              "deployment/windows",
+              "deployment/gpu-setup",
+              "deployment/https-network"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/model-providers",
+              "integrations/mcp-servers",
+              "integrations/searxng",
+              "integrations/email-providers"
+            ]
+          },
+          {
+            "group": "Security & Administration",
+            "pages": [
+              "administration/users-auth",
+              "administration/api-tokens",
+              "administration/security",
+              "administration/backup-data"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Chat with local and cloud LLMs (Ollama, vLLM, llama.cpp, OpenAI, OpenRouter, GitHub Copilot)",
+    "Autonomous agent loop with MCP tool support, web search, shell, file, and memory tools",
+    "Cookbook: hardware-aware model browser — scan, recommend, download, and serve models in one click",
+    "Deep Research: iterative Think→Search→Extract→Synthesize loop producing structured visual reports",
+    "Multi-tab document editor with AI-assisted edits (markdown, HTML, CSV, syntax highlighting)",
+    "IMAP/SMTP email inbox with AI triage: urgency scoring, auto-tagging, summaries, and reply drafts",
+    "CalDAV calendar with Radicale / Nextcloud / Apple / Fastmail sync",
+    "Persistent vector memory and agent skills using ChromaDB and fastembed",
+    "Notes, todos, and scheduled tasks with ntfy/email/browser notifications",
+    "Side-by-side blind model comparison tool",
+    "Multi-user auth with per-user privilege controls and optional 2FA",
+    "PWA-ready responsive UI that works on mobile"
+  ],
+  "publicApiSurface": [
+    "POST /chat — streaming chat completions",
+    "POST /agent — streaming autonomous agent runs",
+    "GET/POST /sessions — session management",
+    "GET/POST /memory — vector memory read/write",
+    "GET/POST /documents — document CRUD",
+    "GET/POST /notes — notes and todos",
+    "GET/POST /tasks — scheduled tasks",
+    "GET/POST /calendar — calendar events",
+    "GET/POST /email — email accounts and messages",
+    "GET/POST /cookbook — model scan, download, and serve",
+    "GET/POST /research — deep research runs",
+    "GET/POST /compare — model comparison sessions",
+    "GET/POST /mcp — MCP server management",
+    "GET/POST /api-tokens — API token management",
+    "GET/POST /settings — app and user settings",
+    "POST /upload — file and image upload",
+    "GET/POST /skills — agent skills",
+    "GET/POST /presets — chat presets",
+    "GET/POST /search — web search",
+    "GET /models — available model discovery"
+  ]
+}

@@ -1,0 +1,82 @@
+---
+title: "AI-Assisted Document Editor in Odysseus"
+sidebarTitle: "Documents"
+description: "Odysseus Documents is a multi-tab editor for Markdown, HTML, and CSV files with inline AI edits, suggestions, and syntax highlighting — you write, AI assists."
+---
+
+Odysseus Documents is a multi-tab editor built around a simple philosophy: **you write the text, the AI is there to assist — not to replace your voice**. You can draft, edit, and organize documents in Markdown, HTML, and CSV, with syntax highlighting and full version history. The AI can make targeted inline edits, propose suggestions as accept/reject bubbles, and help structure content — but only when you ask it to.
+
+## Supported formats
+
+| Format | Features |
+|---|---|
+| **Markdown** | Syntax highlighting, live preview, AI edits and suggestions |
+| **HTML** | Syntax highlighting, inline preview, AI edits |
+| **CSV** | Syntax highlighting, AI edits |
+| **Text** | Plain text editing, AI edits |
+| **Email** | Compose window format for drafting email replies |
+
+## Multi-tab workflow
+
+Open multiple documents simultaneously — each appears as a tab in the editor panel. Switch between tabs without losing your place. Documents are auto-saved and persist between sessions.
+
+The agent always acts on the **active** (currently visible) document. If you have several tabs open and ask "fix the typo in the second paragraph", the agent edits the tab you're looking at.
+
+## AI features
+
+### Inline edits
+
+Ask the agent to edit the open document in chat: "Remove the second section", "Rewrite the introduction to be more concise", "Fix grammar throughout." The agent uses `edit_document` with precise find-and-replace operations and shows a before/after diff in the tool bubble.
+
+### Suggestions
+
+Ask for suggestions or a review — "How can I improve this?", "Give me feedback" — and the agent responds with inline `accept`/`reject` bubbles directly on the document, rather than a prose list in chat. Each bubble shows the proposed change and the reason. Accept or reject each suggestion individually.
+
+### AI document creation
+
+When the agent creates a new document (code, report, essay, generated content), it streams the content into the editor in real time so you see it appear line by line, just like a chat response.
+
+## File uploads and extraction
+
+Beyond editing text documents, Odysseus can display and extract content from uploaded files:
+
+<AccordionGroup>
+  <Accordion title="PDF viewer (requires PyMuPDF)" icon="file-pdf">
+    When the optional `PyMuPDF` package is installed, uploaded PDF files render in a side panel with per-page display. The agent can also fill PDF form fields directly from the editor.
+
+    > **Note:** PyMuPDF is licensed under AGPL-3.0. It is not installed by default. Build with `--build-arg INSTALL_OPTIONAL=true` in Docker, or install manually with `pip install -r requirements-optional.txt`.
+  </Accordion>
+  <Accordion title="Office and EPUB extraction (requires markitdown)" icon="file-word">
+    When the optional `markitdown` package is installed, uploading `.docx`, `.xlsx`, `.pptx`, `.xls`, or `.epub` files extracts the content as Markdown, which then opens as an editable document.
+  </Accordion>
+</AccordionGroup>
+
+## Optional dependencies
+
+The core editor works without any optional packages. The following extras unlock additional capabilities:
+
+| Package | Feature unlocked | License |
+|---|---|---|
+| `faster-whisper` | Local speech-to-text (microphone → text) | MIT |
+| `PyMuPDF` | PDF page rendering and form filling | **AGPL-3.0** |
+| `markitdown` | Office/EPUB document text extraction | MIT |
+
+<Tip>
+  To install all optional dependencies in one step:
+
+  ```bash
+  pip install -r requirements-optional.txt
+  ```
+
+  In Docker, build the image with the optional flag:
+
+  ```bash
+  docker compose build --build-arg INSTALL_OPTIONAL=true
+  ```
+</Tip>
+
+## Document library
+
+All documents are accessible from the **Library** panel (the book icon in the sidebar). The library shows documents sorted by most-recently updated, with language facets for filtering. Documents can be opened, downloaded, or deleted from the library view.
+
+The agent can also list and open library documents with `manage_documents` — useful for "show me my documents" or "open the Sweden notes doc."

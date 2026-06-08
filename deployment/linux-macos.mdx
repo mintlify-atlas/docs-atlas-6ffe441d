@@ -1,0 +1,178 @@
+---
+title: "Run Odysseus Natively on Linux or macOS"
+sidebarTitle: "Linux & macOS"
+description: "Install Odysseus as a native Python application on Linux or macOS. Required for Apple Silicon GPU acceleration with Metal and llama.cpp."
+---
+
+Running Odysseus natively — without Docker — is the right choice when you want to use your hardware's GPU directly. On Apple Silicon, Docker runs inside a Linux VM and cannot access the Metal GPU, so native installation is the only way to get GPU-accelerated model serving via llama.cpp on an M-series Mac. On Linux, native installation is a straightforward alternative to Docker if you prefer managing the Python environment yourself or are running on a host where Docker is not available.
+
+## Prerequisites
+
+| Requirement | Notes |
+|-------------|-------|
+| Python 3.11+ | 3.12 or 3.13 also work |
+| `tmux` | Required by Cookbook for background model downloads and serves |
+| Git | Required for cloning and Cookbook background operations |
+
+On macOS, the quickest path is the one-command launcher (see [Apple Silicon](#apple-silicon)), which installs everything via Homebrew automatically.
+
+## Linux Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+    cd odysseus
+    ```
+  </Step>
+
+  <Step title="Create a Python virtual environment">
+    ```bash
+    python3 -m venv venv
+    ```
+  </Step>
+
+  <Step title="Activate the environment">
+    ```bash
+    source venv/bin/activate
+    ```
+  </Step>
+
+  <Step title="Install Python dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+    This may take a few minutes on first run. To also install optional extras (PDF viewer, Office extraction), run `pip install -r requirements-optional.txt` afterwards — see [Optional Dependencies](#optional-dependencies) below.
+  </Step>
+
+  <Step title="Run first-time setup">
+    ```bash
+    python setup.py
+    ```
+    This creates the `data/` directory structure, initialises the database, and prints a one-time admin password on first run. It is safe to re-run.
+  </Step>
+
+  <Step title="Start the server">
+    ```bash
+    python -m uvicorn app:app --host 127.0.0.1 --port 7000
+    ```
+    Open `http://localhost:7000` in your browser and log in with the password printed in the previous step.
+  </Step>
+</Steps>
+
+<Note>
+  Use `--host 0.0.0.0` only when you intentionally want LAN or reverse-proxy access. See [HTTPS & Network](/deployment/https-network) for security steps to take before binding outside loopback.
+</Note>
+
+## Apple Silicon
+
+Docker on macOS cannot use the Metal GPU. For GPU-accelerated Cookbook on an M-series Mac, run Odysseus natively using the provided launcher script. It installs Homebrew dependencies, creates the Python virtual environment, runs first-time setup, and starts the server — and it is safe to re-run.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+    cd odysseus
+    ```
+  </Step>
+
+  <Step title="Run the macOS launcher">
+    ```bash
+    ./start-macos.sh
+    ```
+    The script installs `tmux` and `llama.cpp` (Metal-enabled) via Homebrew if they are not already present, creates `venv/`, installs Python packages, runs `setup.py`, and starts uvicorn.
+  </Step>
+
+  <Step title="Open the web UI">
+    ```
+    http://127.0.0.1:7860
+    ```
+    The script starts on port `7860` instead of `7000` because macOS AirPlay Receiver commonly holds port `7000`.
+  </Step>
+</Steps>
+
+<Note>
+  **vLLM and SGLang are CUDA/ROCm-only** and do not run on macOS. Cookbook uses llama.cpp (via the Homebrew `llama.cpp` formula) and Ollama for Metal-accelerated inference. MLX-only models are not served by Odysseus.
+</Note>
+
+### Exposing Odysseus to Your Phone (LAN / Tailscale)
+
+To reach Odysseus from another device on your network or over Tailscale, bind to all interfaces before starting the script:
+
+```bash
+ODYSSEUS_HOST=0.0.0.0 ./start-macos.sh
+# Then open: http://<your-mac-ip-or-tailscale-ip>:7860
+```
+
+Alternatively, set `APP_BIND=0.0.0.0` in `.env` — the script reads `.env` at startup, so the override is picked up automatically on every subsequent run without a command-line prefix.
+
+Keep `AUTH_ENABLED=true` (the default) before binding outside loopback.
+
+### macOS App Wrapper
+
+To build a clickable `.app` that launches Odysseus from your Dock or Launchpad:
+
+```bash
+./build-macos-app.sh
+```
+
+This reuses the same `venv/` environment created by `start-macos.sh`.
+
+## Running as a systemd Service (Linux)
+
+To run Odysseus as a background service that starts on boot, use the provided service file and installer:
+
+<Steps>
+  <Step title="Edit the service file">
+    Open `odysseus-ui.service` and replace the placeholder values with your username and install path:
+
+    ```ini
+    [Service]
+    User=YOURUSER
+    WorkingDirectory=/home/YOURUSER/odysseus-ui
+    ExecStart=/home/YOURUSER/odysseus-ui/venv/bin/uvicorn app:app --port 7000 --host 0.0.0.0
+    EnvironmentFile=-/home/YOURUSER/odysseus-ui/.env
+    ```
+  </Step>
+
+  <Step title="Install and enable the service">
+    ```bash
+    ./install-service.sh
+    ```
+    This copies the service file to `/etc/systemd/system/`, reloads the systemd daemon, enables the unit, and starts it immediately.
+  </Step>
+
+  <Step title="Check service status">
+    ```bash
+    sudo systemctl status odysseus-ui
+    sudo journalctl -u odysseus-ui -f
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  The default `ExecStart` in `odysseus-ui.service` binds to `0.0.0.0`. Edit it to `127.0.0.1` unless you are intentionally exposing Odysseus to your LAN, and ensure `AUTH_ENABLED=true` is set in your `.env`.
+</Warning>
+
+## Optional Dependencies
+
+`requirements-optional.txt` contains packages that unlock extra features but are not installed by default:
+
+| Package | Feature |
+|---------|---------|
+| `faster-whisper` | Local speech-to-text via the "local" STT provider |
+| `duckduckgo-search` | DuckDuckGo as a search provider option |
+| `PyMuPDF` | PDF page rendering in the side viewer panel and form-filling **(AGPL-3.0)** |
+| `markitdown` | Office/EPUB document text extraction (.docx, .xlsx, .pptx, .epub → Markdown) |
+
+Install with:
+
+```bash
+pip install -r requirements-optional.txt
+```
+
+## Next Steps
+
+- **Configure models and providers** — open **Settings** inside the app after first boot
+- **Expose Odysseus over HTTPS** — see [HTTPS & Network](/deployment/https-network)
+- **GPU setup for Docker** — see [GPU Setup](/deployment/gpu-setup)

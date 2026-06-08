@@ -1,0 +1,113 @@
+---
+title: "Notes, Todos, and Scheduled Tasks in Odysseus"
+sidebarTitle: "Notes & Tasks"
+description: "Odysseus Notes provides quick notes with reminders, a checklist todo list, and cron-style scheduled tasks that the agent can act on automatically."
+---
+
+Odysseus gives you three tools for capturing and acting on things that need to happen: **Notes** for quick captures with optional reminders, **Todos** for checklist-style task tracking, and **Scheduled Tasks** for recurring AI-driven jobs that run on a cron schedule automatically. All three are integrated with the agent and with Odysseus's notification system — so a note reminder fires a real push notification, and a scheduled task can have the agent summarize your inbox, generate a weekly report, or run any agent action on autopilot.
+
+## Notes
+
+Notes are quick captures — a title, optional body text, an optional color label, and an optional `due_date` for a reminder. They are the right place for "remind me to send the invoice by Friday" or "jot down this API key before I forget."
+
+**Features:**
+- Markdown content support
+- Color labels and custom tags
+- Pin notes to keep them at the top
+- Archive notes to move them out of the main view
+- **Ping reminders** — set a `due_date` and Odysseus fires a notification on that date/time via the configured channel
+- Repeat options for recurring reminders (`daily`, `weekly`, `monthly`)
+
+Ask the agent to create a note in natural language:
+
+```
+"Remind me to review the PR at 3pm tomorrow"
+"Make a note: pick up groceries on the way home"
+"Add a note titled 'Ideas' with content: async queue redesign"
+```
+
+The agent uses `manage_notes` with `action=add` and interprets natural-language dates for `due_date` (e.g. "tomorrow at 1pm", "next Monday", "in 2 hours").
+
+## Todos
+
+Todos are checklist-style notes — each item is a line with a checkbox. They are the right format for "shopping list", "release checklist", or "onboarding steps."
+
+Create a todo in the Notes panel by setting the type to **Checklist**, or ask the agent:
+
+```
+"Create a todo list for the deployment steps"
+"Add a checklist: buy milk, eggs, bread"
+```
+
+Checklist items can be toggled done/undone from the Notes panel UI or by the agent. Completed items are shown with a strikethrough; you can choose to show or hide completed items.
+
+## Scheduled Tasks
+
+Scheduled Tasks are recurring AI jobs that run on a cron-style schedule. Unlike notes (which are reminders for humans), tasks are instructions for the **agent** — Odysseus runs them automatically at the scheduled time using the configured task model.
+
+**Examples of scheduled tasks:**
+
+| Task | Schedule |
+|---|---|
+| Summarize unread inbox every morning | `daily at 09:00` |
+| Generate a weekly project status report | `weekly on Monday 08:00` |
+| Check HuggingFace for new Qwen model releases | `weekly on Friday 12:00` |
+| Archive emails older than 30 days | `monthly on the 1st` |
+
+**Task types:**
+
+- **LLM task** — sends a prompt to the agent model; the agent can use all enabled tools
+- **Research task** — triggers a Deep Research job on a schedule
+- **Action task** — runs a built-in action (e.g. `cookbook_serve` to start a model server at a set time)
+
+### Creating a scheduled task
+
+Ask the agent directly:
+
+```
+"Summarize my inbox every morning at 8am"
+"Run a weekly research report on AI news every Monday"
+```
+
+The agent calls `manage_tasks` with `action=create` and returns a link to the created task. You can also create tasks manually from the **Tasks** panel in the sidebar.
+
+### ODYSSEUS_INPROCESS_TASKS
+
+By default, the task scheduler runs in-process with Odysseus. To use an external cron driver instead, set:
+
+```bash
+ODYSSEUS_INPROCESS_TASKS=false
+```
+
+When disabled, tasks are stored in the database but execution is left to an external scheduler (e.g. system cron or a job queue) that calls the task run endpoint.
+
+## Notification channels
+
+Reminders from notes and scheduled tasks are delivered through these channels:
+
+<Tabs>
+  <Tab title="Browser push">
+    Uses the native browser `Notification` API. Grant notification permission in your browser when prompted. Works on desktop and mobile browsers that support web push, including PWA installs.
+  </Tab>
+  <Tab title="ntfy">
+    [ntfy](https://ntfy.sh) sends push notifications to your phone or desktop app without requiring a cloud service account.
+
+    The bundled Docker Compose stack includes ntfy on port **8091** and wires it automatically. For an external ntfy server (your own or ntfy.sh), set:
+
+    ```bash
+    # .env
+    NTFY_BASE_URL=https://ntfy.sh   # or your self-hosted instance
+    ```
+
+    Then configure a topic and subscribe in the ntfy app or browser.
+  </Tab>
+  <Tab title="Email">
+    Sends reminder notifications via the configured SMTP account. Set up an email account first in **Settings → Email**, then select **Email** as the reminder channel in **Settings → Reminders**.
+  </Tab>
+</Tabs>
+
+Configure the default notification channel in **Settings → Reminders → Channel** (`browser`, `ntfy`, or `email`).
+
+<Note>
+  The reminder channel setting applies globally to all note pings and task notifications. Calendar event reminders use the same channel. See [Email & Calendar](/features/email-calendar) for calendar-specific notification setup.
+</Note>

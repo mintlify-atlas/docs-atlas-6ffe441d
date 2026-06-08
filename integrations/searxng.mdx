@@ -1,0 +1,95 @@
+---
+title: "Configure SearXNG Web Search for Odysseus"
+sidebarTitle: "SearXNG"
+description: "Odysseus uses SearXNG as its web search backend for Agent, Deep Research, and direct search. Docker Compose bundles SearXNG automatically."
+---
+
+Odysseus uses [SearXNG](https://searxng.org) as its privacy-respecting web search backend. The Agent's web tool, Deep Research's multi-step source gathering, and the direct search panel in the UI all route queries through SearXNG. If you are running Docker Compose, SearXNG is already bundled and configured — you do not need to do anything for it to work. For native installs you need to run SearXNG separately and point Odysseus at it.
+
+## Docker Compose (default)
+
+Docker Compose starts a SearXNG container alongside Odysseus automatically. Inside the Compose network, Odysseus reaches SearXNG at `http://searxng:8080`. On the host machine, SearXNG is exposed on port `8080` bound to `127.0.0.1` by default, so it is reachable from the host at `http://localhost:8080` but not from your LAN or the internet.
+
+The `SEARXNG_INSTANCE` environment variable is automatically overridden to `http://searxng:8080` inside the Compose network — you do not need to set it manually.
+
+<Note>
+  SearXNG binds to `127.0.0.1` by default in the Docker Compose setup. Do not expose it publicly. SearXNG has no authentication — anyone who can reach it can use it as an open proxy.
+</Note>
+
+## Native install
+
+For a native Linux or macOS install, you need to run SearXNG yourself and tell Odysseus where to find it:
+
+<Steps>
+  <Step title="Install SearXNG">
+    Follow the [official SearXNG installation guide](https://docs.searxng.org/admin/installation.html). A quick Docker one-liner also works:
+    ```bash
+    docker run -d -p 8080:8080 --name searxng searxng/searxng
+    ```
+  </Step>
+  <Step title="Set SEARXNG_INSTANCE in .env">
+    ```bash
+    # .env
+    SEARXNG_INSTANCE=http://localhost:8080
+    ```
+  </Step>
+  <Step title="Restart Odysseus">
+    Odysseus reads `SEARXNG_INSTANCE` at startup. Restart the app after changing `.env`.
+  </Step>
+</Steps>
+
+## Using an external SearXNG instance
+
+You can point Odysseus at any reachable SearXNG instance — a self-hosted instance on another machine, a Tailscale peer, or a shared team instance:
+
+```bash
+# .env
+SEARXNG_INSTANCE=https://searxng.example.com
+```
+
+Set `SEARXNG_INSTANCE` to the full base URL of the instance. Odysseus will append `/search` and query parameters as needed.
+
+## SEARXNG_SECRET
+
+`SEARXNG_SECRET` is SearXNG's internal cookie and CSRF protection secret. When running in Docker, Odysseus generates a random secret on first boot and stores it in the `searxng-data` volume — no action required. For native installs you can leave it unset (SearXNG will generate its own), or pin it explicitly if you want reproducible behavior across restarts:
+
+```bash
+# .env
+SEARXNG_SECRET=your-random-secret-here
+```
+
+## DuckDuckGo as an alternative
+
+If you prefer DuckDuckGo over SearXNG — for example, in a native install where you don't want to run SearXNG at all — install the optional dependency:
+
+```bash
+pip install duckduckgo-search
+```
+
+This package is listed in `requirements-optional.txt`. After installing it, select **DuckDuckGo** in **Settings → Search** and restart Odysseus.
+
+<Note>
+  `duckduckgo-search` is an unofficial library and depends on DuckDuckGo's HTML scraping interface, which can break when DuckDuckGo changes its site layout. SearXNG is more reliable for production use.
+</Note>
+
+## How search is used
+
+| Feature | How it uses search |
+|---|---|
+| **Agent web tool** | The agent calls `web_search` with a query and gets back a context string plus source links, which it can then cite or follow up on. |
+| **Deep Research** | Multi-step research runs use SearXNG to find and rank sources, then fetch and synthesize the content of top results. |
+| **Direct search (UI)** | The search panel in the Odysseus UI queries SearXNG directly and returns results inline. |
+
+## Troubleshooting
+
+<Accordion title="Agent says web search is unavailable">
+  Check that `SEARXNG_INSTANCE` is set and reachable. For Docker installs, verify the SearXNG container is running: `docker compose ps`. For native installs, confirm SearXNG is accessible at the configured URL from the same machine Odysseus runs on.
+</Accordion>
+
+<Accordion title="SearXNG returns no results">
+  SearXNG aggregates external search engines. If all of its configured engines are rate-limiting it, results may be empty. Check the SearXNG admin panel (usually at `http://localhost:8080/admin`) for engine health. The default Docker config has a working set of engines; you may need to adjust them for your region or network.
+</Accordion>
+
+<Accordion title="Docker: SearXNG not reachable from host">
+  By default `SEARXNG_BIND=127.0.0.1` — the port is only accessible on the host machine, not your LAN. This is intentional. If you need LAN access (e.g. to inspect it from another device), set `SEARXNG_BIND=0.0.0.0` in `.env`, but be aware there is no authentication.
+</Accordion>

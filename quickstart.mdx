@@ -1,47 +1,183 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Odysseus in Minutes"
+sidebarTitle: "Quickstart"
+description: "Install and run Odysseus using Docker or native Python on Linux, macOS, or Windows. Get from zero to a working AI workspace in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+Getting Odysseus running takes only a few commands. The defaults work out of the box — clone the repository, start the server, then configure your model providers and integrations inside **Settings**. You only need to edit `.env` for deployment-level overrides like the bind address, port, or a pre-seeded admin password. Choose the installation method that fits your environment below.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+<Tabs>
+  <Tab title="Docker (recommended)">
+    Docker Compose starts Odysseus together with bundled ChromaDB, SearXNG, and ntfy services. All ports bind to `127.0.0.1` by default, so nothing is exposed to your LAN unless you opt in.
 
-## Prerequisites
+    **Requirements:** Docker Desktop (or Docker Engine + Compose plugin) on Linux, macOS, or Windows.
 
-Before you begin, you must have:
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+        cd odysseus
+        ```
+      </Step>
+      <Step title="Create your .env file">
+        ```bash
+        cp .env.example .env
+        ```
+        This step is optional but recommended — it gives you an explicit file to edit for any deployment overrides. The app runs without it.
+      </Step>
+      <Step title="Build and start the containers">
+        ```bash
+        docker compose up -d --build
+        ```
+        The first build takes a few minutes while Docker downloads and installs Python dependencies. Subsequent starts are fast.
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
+        <Note>
+          To include optional extras in the image (PDF viewer and Office document extraction; note that PyMuPDF is AGPL-licensed), build with the optional flag before bringing services up:
+          ```bash
+          docker compose build --build-arg INSTALL_OPTIONAL=true
+          docker compose up -d
+          ```
+        </Note>
+      </Step>
+      <Step title="Open Odysseus">
+        Once the containers are healthy, open [http://localhost:7000](http://localhost:7000) in your browser.
 
-## Get started
+        If port `7000` is already in use on your machine, set `APP_PORT=7001` (or another free port) in your `.env` file and re-run `docker compose up -d`.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Native Python (Linux)">
+    Run Odysseus directly with Python and uvicorn. This is the lightest option — no Docker daemon required.
 
-<Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+    **Requirements:** Python 3.11 or newer. Install `tmux` if you want the Cookbook's background model download and serve features.
 
-    ```bash
-    npm install your-package
-    ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+        cd odysseus
+        ```
+      </Step>
+      <Step title="Create and activate a virtual environment">
+        ```bash
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+      </Step>
+      <Step title="Install dependencies">
+        ```bash
+        pip install -r requirements.txt
+        ```
+      </Step>
+      <Step title="Run first-time setup">
+        ```bash
+        python setup.py
+        ```
+        This creates the `data/` directory structure, initialises the SQLite database, and prompts you to set an admin username and password. The credentials are printed to the terminal if setup runs non-interactively.
+      </Step>
+      <Step title="Start the server">
+        ```bash
+        python -m uvicorn app:app --host 127.0.0.1 --port 7000
+        ```
+        Open [http://localhost:7000](http://localhost:7000) when the server is ready. Use `--host 0.0.0.0` only when you intentionally want LAN or reverse-proxy access.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="macOS (Apple Silicon)">
+    Docker on macOS cannot use the Metal GPU. For GPU-accelerated Cookbook on an M-series Mac, run Odysseus natively with the provided launcher script.
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+    **Requirements:** Homebrew. The script installs Python 3.11 (arm64) and `tmux` automatically via Homebrew if they are not already present.
 
-    ```bash
-    your-cli start
-    ```
-  </Step>
-</Steps>
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+        cd odysseus
+        ```
+      </Step>
+      <Step title="Run the macOS launcher">
+        ```bash
+        ./start-macos.sh
+        ```
+        The script installs Homebrew dependencies, creates an arm64 virtual environment, runs `setup.py`, and starts uvicorn on port **7860** (because macOS AirPlay often holds port 7000).
+      </Step>
+      <Step title="Open Odysseus">
+        Open [http://127.0.0.1:7860](http://127.0.0.1:7860) in your browser.
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+        To expose Odysseus to your phone over a trusted LAN or Tailscale VPN, bind all interfaces before running the script:
+        ```bash
+        ODYSSEUS_HOST=0.0.0.0 ./start-macos.sh
+        # then open http://<tailscale-ip>:7860
+        ```
+        Alternatively, set `APP_BIND=0.0.0.0` in `.env` and the script will pick it up automatically.
+      </Step>
+    </Steps>
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+    <Note>
+      vLLM and SGLang are CUDA/ROCm-only and do not run on macOS. The Cookbook uses llama.cpp with Metal acceleration on Apple Silicon. To build a clickable `.app` wrapper, run `./build-macos-app.sh` after the initial setup.
+    </Note>
+  </Tab>
+  <Tab title="Windows">
+    Odysseus runs natively on Windows. The core features (chat, agent, memory, documents, email, calendar, deep research) work without any additional tools. For full Cookbook background downloads and the agent shell tool, install [Git for Windows](https://git-scm.com/download/win) to get `bash.exe`.
+
+    **Requirements:** Python 3.11 or newer. Local GPU serving with vLLM or SGLang requires WSL2; for a local model on Windows, [Ollama](https://ollama.com/download) is the simplest path.
+
+    <Steps>
+      <Step title="Clone the repository">
+        ```powershell
+        git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+        cd odysseus
+        ```
+      </Step>
+      <Step title="Run the one-command launcher">
+        ```powershell
+        powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1
+        ```
+        This script creates the virtual environment, installs dependencies, runs `setup.py`, and starts the server. It is safe to re-run.
+
+        Or, if you prefer to do it manually:
+        ```powershell
+        py -3.11 -m venv venv
+        venv\Scripts\Activate.ps1
+        pip install -r requirements.txt
+        python setup.py
+        python -m uvicorn app:app --host 127.0.0.1 --port 7000
+        ```
+        If `python` points to an older interpreter, use `py -3.12` (or another installed 3.11+ version) for the venv step.
+      </Step>
+      <Step title="Open Odysseus">
+        Open [http://localhost:7000](http://localhost:7000) and log in with the admin credentials printed during setup.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## First login
+
+Odysseus creates an admin account on first boot. The username defaults to `admin` (or whatever you set as `ODYSSEUS_ADMIN_USER`). The password is either the value of `ODYSSEUS_ADMIN_PASSWORD` from your `.env`, the one you entered interactively during `setup.py`, or a randomly generated token printed in the terminal if setup ran non-interactively.
+
+For Docker installs, retrieve the generated password from the container logs:
+
+```bash
+docker compose logs odysseus | grep -i password
+```
+
+Log in at `/login`, then navigate to **Settings → Account** to change your password to something permanent.
+
+## Add your first model
+
+Odysseus has no bundled model — you connect it to a model provider after first boot.
+
+1. Go to **Settings → Models** (or open **Settings** and search for "Models").
+2. Add an endpoint. For a locally-running Ollama instance, use:
+   ```
+   http://localhost:11434/v1
+   ```
+   If Odysseus is running inside Docker and Ollama is on the host, use `http://host.docker.internal:11434/v1` instead, and make sure Ollama is listening on all interfaces (`OLLAMA_HOST=0.0.0.0:11434 ollama serve`).
+3. For OpenAI or OpenRouter, add your API key directly in the Settings panel — no `.env` edit required.
+
+Once a model endpoint is saved, Odysseus discovers available models automatically and they appear in the chat model selector.
+
+<Note>
+  By default, Odysseus and all bundled Docker services bind to `127.0.0.1` and are only reachable from the local machine. To expose Odysseus on your LAN or over HTTPS with a reverse proxy, see the [HTTPS & Network Exposure](/deployment/https-network) guide.
+</Note>

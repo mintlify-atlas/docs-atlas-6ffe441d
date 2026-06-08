@@ -1,0 +1,131 @@
+---
+title: "Add Email Accounts to Odysseus via IMAP and SMTP"
+sidebarTitle: "Email Providers"
+description: "Odysseus email uses standard IMAP/SMTP with username and password. Works with Gmail app passwords, Fastmail, ProtonMail Bridge, and most IMAP-enabled providers."
+---
+
+Odysseus includes a full IMAP/SMTP inbox with AI triage built in. It connects to email using standard IMAP for reading and SMTP for sending, authenticated with a username and password (or app password). This works with the overwhelming majority of email providers — any service that supports IMAP access and has not disabled password authentication can be added.
+
+## Adding an account
+
+<Steps>
+  <Step title="Open Email Settings">
+    Go to **Settings → Email → Add Account**.
+  </Step>
+  <Step title="Fill in the account details">
+    Enter a display name, then the IMAP and SMTP server details: hostname, port, TLS mode, username, and password.
+  </Step>
+  <Step title="Test the connection">
+    Use the **Test** button to verify both IMAP and SMTP before saving. Odysseus will report which half (if either) failed.
+  </Step>
+  <Step title="Save">
+    Once the test passes, save the account. Odysseus starts polling for new messages immediately. The first account you add becomes the default.
+  </Step>
+</Steps>
+
+## Provider compatibility
+
+<Tabs>
+  <Tab title="Gmail">
+    Gmail requires IMAP to be enabled in your Google Account settings, and uses an **App Password** for third-party clients when 2-Step Verification is active (2FA is required to generate app passwords).
+
+    1. Enable IMAP in Gmail settings → See all settings → Forwarding and POP/IMAP
+    2. Generate an App Password: Google Account → Security → App passwords → Mail → Generate
+
+    | Setting | Value |
+    |---|---|
+    | IMAP host | `imap.gmail.com` |
+    | IMAP port | `993` (SSL/TLS) |
+    | SMTP host | `smtp.gmail.com` |
+    | SMTP port | `587` (STARTTLS) |
+    | Username | your full Gmail address |
+    | Password | the 16-character App Password |
+  </Tab>
+  <Tab title="Fastmail">
+    Fastmail supports IMAP natively. Generate an app-specific password at Fastmail Settings → Privacy and Security → Connected Apps → New App Password.
+
+    | Setting | Value |
+    |---|---|
+    | IMAP host | `imap.fastmail.com` |
+    | IMAP port | `993` (SSL/TLS) |
+    | SMTP host | `smtp.fastmail.com` |
+    | SMTP port | `587` (STARTTLS) |
+    | Username | your full Fastmail address |
+    | Password | app-specific password |
+  </Tab>
+  <Tab title="iCloud Mail">
+    Apple iCloud Mail requires IMAP to be enabled in your iCloud account and uses an app-specific password.
+
+    1. Enable iCloud Mail at iCloud.com → Account Settings
+    2. Generate an app-specific password at appleid.apple.com → Sign-In and Security → App-Specific Passwords
+
+    | Setting | Value |
+    |---|---|
+    | IMAP host | `imap.mail.me.com` |
+    | IMAP port | `993` (SSL/TLS) |
+    | SMTP host | `smtp.mail.me.com` |
+    | SMTP port | `587` (STARTTLS) |
+    | Username | your Apple ID email address |
+    | Password | app-specific password |
+  </Tab>
+  <Tab title="ProtonMail">
+    ProtonMail uses end-to-end encryption and does not expose a standard IMAP endpoint directly. To use it with Odysseus you must run **ProtonMail Bridge** locally — it acts as a local IMAP/SMTP proxy that decrypts messages before passing them to the client.
+
+    1. Install [Proton Mail Bridge](https://proton.me/mail/bridge) on the same machine running Odysseus.
+    2. Sign in to Bridge and note the local hostname, ports, and generated Bridge password it displays.
+    3. In Odysseus, enter those local credentials. Bridge typically listens on `127.0.0.1`, port `1143` for IMAP and `1025` for SMTP.
+
+    For Docker installs, use `host.docker.internal` instead of `127.0.0.1` so Odysseus (inside the container) can reach Bridge (on the host).
+  </Tab>
+  <Tab title="Self-hosted">
+    Any standard Dovecot/Postfix or compatible server works with standard credentials.
+
+    | Setting | Typical value |
+    |---|---|
+    | IMAP host | your mail server hostname |
+    | IMAP port | `993` (SSL) or `143` (STARTTLS) |
+    | SMTP host | your mail server hostname |
+    | SMTP port | `587` (STARTTLS) or `465` (SSL) |
+    | Username | mailbox username or full address |
+    | Password | mailbox password |
+
+    If your server uses a self-signed or internal-CA certificate, the certificate must be trusted on the machine running Odysseus, otherwise the TLS handshake will fail.
+  </Tab>
+</Tabs>
+
+## Outlook and Office 365 limitation
+
+<Warning>
+  Microsoft has disabled basic (username + password) authentication for Outlook and Microsoft 365 in most modern accounts and tenants. If you try to add an Outlook account, you will likely see:
+
+  - `IMAP: AUTHENTICATE failed`
+  - `SMTP: 535 5.7.139 Authentication unsuccessful, basic authentication is disabled`
+
+  This is a Microsoft policy, not a configuration error. OAuth and Microsoft Graph Mail integration is not yet available in Odysseus, so most Outlook and Microsoft 365 accounts cannot currently be added through the IMAP/SMTP form. Use a different provider, or check whether your specific tenant still permits app passwords for IMAP access.
+</Warning>
+
+## AI triage features
+
+Each account can have per-account AI triage enabled in **Settings → Email**. When active, Odysseus uses your configured utility or default model to process incoming messages in the background.
+
+| Feature | What it does |
+|---|---|
+| **Auto-summarize** | Generates bullet-point summaries shown on hover in the inbox list. |
+| **Auto-reply draft** | Drafts a reply in your writing style, pre-filled when you click Reply. |
+| **Auto-tag** | Classifies messages with labels such as `urgent`, `marketing`, `invoice`, `reminder`, and `spam`. |
+| **Spam detection** | Scores each message for spam probability; flagged messages appear under the `spam` tag filter. |
+| **Urgency scoring** | Assigns an urgency score per message; the inbox unread dot changes color based on the highest-urgency unread. |
+
+<Note>
+  AI triage requires a working LLM endpoint. Set at least a Utility model in **Settings → Models** for background tasks. Triage runs in the background and does not block inbox loading.
+</Note>
+
+## CalDAV calendar sync
+
+Calendar sync is configured separately from email. If your provider also offers CalDAV — for example Fastmail, Nextcloud, or a self-hosted Radicale server — connect your calendar in **Settings → Calendar**. See the [Email and Calendar](/features/email-calendar) guide for the full CalDAV setup.
+
+## Credential storage
+
+<Warning>
+  IMAP and SMTP credentials, including passwords and app passwords, are stored locally in `data/` (encrypted at rest). Keep `data/` private and exclude it from any backups you share or publish. It is gitignored by default — do not override that.
+</Warning>

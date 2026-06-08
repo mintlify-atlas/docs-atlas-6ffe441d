@@ -1,0 +1,111 @@
+---
+title: "Email and Calendar with AI Triage in Odysseus"
+sidebarTitle: "Email & Calendar"
+description: "Odysseus integrates IMAP/SMTP email with AI triage — auto-tagging, urgency scoring, reply drafts, and spam detection — plus CalDAV calendar sync."
+---
+
+Odysseus brings your email and calendar together with an AI triage layer built in. The inbox isn't just a message list — it automatically scores urgency, tags categories, summarizes threads, drafts replies, and filters spam. The calendar is local-first with CalDAV sync, so your events live on your machine and optionally stay in sync with Radicale, Nextcloud, Apple Calendar, or Fastmail. Together, email and calendar are also fully accessible to the agent, so you can ask Odysseus to draft a reply, schedule a meeting, or remind you of an event — all from the chat window.
+
+## Email features
+
+Odysseus connects to any standard IMAP/SMTP email provider. Each account is configured independently and can have different triage settings.
+
+### AI triage
+
+When new messages arrive, Odysseus can automatically:
+
+| Feature | Description |
+|---|---|
+| **Urgency scoring** | Assigns a priority level (low / normal / high / urgent) based on sender, subject, and content |
+| **Auto-tagging** | Applies category labels (work, personal, bills, newsletters, etc.) |
+| **Auto-summary** | Generates a one-paragraph thread summary for long email chains |
+| **Reply drafts** | Suggests a draft reply, which appears as a document you can edit before sending |
+| **Spam detection** | Flags likely spam and optionally moves it to the Spam folder |
+
+### Per-account routing
+
+Each email account can have its own triage configuration. For example, a work account can use a more aggressive urgency model while a personal account keeps auto-tagging but skips auto-reply drafts.
+
+## Adding an email account
+
+<Steps>
+  <Step title="Open Email Settings">
+    Navigate to **Settings → Email** and click **Add Account**.
+  </Step>
+  <Step title="Enter IMAP details">
+    Fill in the IMAP host, port, username, and password. Common settings:
+
+    | Provider | IMAP host | Port | Security |
+    |---|---|---|---|
+    | Gmail | `imap.gmail.com` | 993 | SSL/TLS |
+    | Fastmail | `imap.fastmail.com` | 993 | SSL/TLS |
+    | iCloud | `imap.mail.me.com` | 993 | SSL/TLS |
+    | Self-hosted | your domain | 993 | SSL/TLS |
+  </Step>
+  <Step title="Enter SMTP details">
+    Fill in the SMTP host, port, username, and password for outbound sending.
+  </Step>
+  <Step title="Save and test">
+    Click **Save**. Odysseus connects and syncs the inbox. Initial sync may take a moment for large mailboxes.
+  </Step>
+</Steps>
+
+## CalDAV calendar
+
+The calendar is local-first: all events are stored in Odysseus's local database and work offline. CalDAV sync pushes and pulls events to and from a remote calendar server.
+
+### Supported CalDAV providers
+
+| Provider | CalDAV URL format |
+|---|---|
+| **Radicale** (self-hosted) | `http://localhost:5232/<username>/` |
+| **Nextcloud** | `https://<server>/remote.php/dav/calendars/<username>/` |
+| **Apple Calendar / iCloud** | `https://caldav.icloud.com/` |
+| **Fastmail** | `https://caldav.fastmail.com/dav/` |
+
+### Adding a CalDAV account
+
+<Steps>
+  <Step title="Open Calendar Settings">
+    Navigate to **Settings → Calendar** and click **Add CalDAV Account**.
+  </Step>
+  <Step title="Enter the CalDAV URL">
+    Paste the CalDAV URL for your provider (see table above), along with your username and password (or app password).
+  </Step>
+  <Step title="Sync">
+    Click **Save**. Odysseus performs an initial sync and imports existing events. Going forward, changes sync bidirectionally.
+  </Step>
+</Steps>
+
+You can also import calendar data via `.ics` file — drag and drop an ICS export from any calendar app.
+
+## Notification channels
+
+Reminders for notes, tasks, and calendar events are delivered through configurable channels:
+
+<CardGroup cols={3}>
+  <Card title="Browser push" icon="bell">
+    Native browser `Notification` API. Works on desktop and mobile (requires notification permission).
+  </Card>
+  <Card title="ntfy" icon="mobile">
+    Push notifications via [ntfy](https://ntfy.sh). The bundled Docker Compose stack includes ntfy on port 8091. For an external ntfy server, set `NTFY_BASE_URL` in `.env`.
+  </Card>
+  <Card title="Email" icon="envelope">
+    Reminder sent via the configured SMTP account.
+  </Card>
+</CardGroup>
+
+Configure your preferred channel in **Settings → Reminders**. See [Notes & Tasks](/features/notes-tasks) for task-level notification setup.
+
+## Outlook / Office 365 limitation
+
+<Warning>
+  Odysseus email uses IMAP/SMTP with username and password authentication. **Microsoft has disabled IMAP basic auth for Outlook.com and Office 365 accounts** — normal Microsoft mailbox passwords will not work. OAuth 2.0 support is not yet implemented.
+
+  Workarounds:
+  - Use a non-Microsoft email provider (Gmail with an App Password, Fastmail, iCloud Mail, etc.)
+  - For Exchange on-premises, ask your admin whether basic IMAP auth is still enabled
+  - Watch the [Odysseus roadmap](https://github.com/pewdiepie-archdaemon/odysseus/blob/main/ROADMAP.md) for OAuth progress
+
+  See `docs/email-outlook.md` in the repository for the current limitation detail and planned direction.
+</Warning>

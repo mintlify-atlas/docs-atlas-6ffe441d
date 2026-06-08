@@ -1,0 +1,170 @@
+---
+title: "Run Odysseus Natively on Windows"
+sidebarTitle: "Windows"
+description: "Deploy Odysseus on Windows using the one-command PowerShell launcher or a manual Python virtual environment setup."
+---
+
+Odysseus runs natively on Windows without Docker or WSL2. The core features — chat, agent, memory, documents, email, calendar, and deep research — work fully out of the box. The one-command PowerShell launcher handles virtualenv creation, dependency installation, first-time setup, and server start in a single step, and it is safe to re-run at any time.
+
+<Tip>
+  Docker on Windows also works and may be simpler for most users, especially if you already have Docker Desktop installed. See [Deploy with Docker Compose](/deployment/docker) for those instructions.
+</Tip>
+
+## Requirements
+
+| Requirement | Notes |
+|-------------|-------|
+| Python 3.11+ | Install from [python.org](https://www.python.org/downloads/). During setup, check **"Add Python to PATH"**. |
+| [Git for Windows](https://git-scm.com/download/win) | Provides `bash.exe`, which is required for Cookbook background model downloads and the agent shell tool. The core app works without it, but Cookbook functionality will be limited. |
+
+## One-Command Launcher
+
+<Steps>
+  <Step title="Clone the repository">
+    Open PowerShell or a terminal and run:
+
+    ```powershell
+    git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+    cd odysseus
+    ```
+  </Step>
+
+  <Step title="Run the launcher">
+    ```powershell
+    powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1
+    ```
+    The script detects your Python installation, creates a `venv\` virtual environment, installs all dependencies, runs first-time setup (which prints a one-time admin password), and starts the server. On subsequent runs it skips any steps already completed.
+  </Step>
+
+  <Step title="Open the web UI">
+    ```
+    http://localhost:7000
+    ```
+    Log in with the admin password printed in the previous step, then change it in **Settings**. Everything else — models, search, email, calendar — is configured from inside the app.
+  </Step>
+</Steps>
+
+The launcher also accepts parameters if you need to change the port or bind address:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1 -Port 7001 -BindHost 127.0.0.1
+```
+
+## Manual Setup
+
+If you prefer to control each step yourself:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```powershell
+    git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+    cd odysseus
+    ```
+  </Step>
+
+  <Step title="Create a virtual environment">
+    ```powershell
+    py -3.11 -m venv venv
+    ```
+    If `py -3.11` is not available, try `py -3.12` or `py -3.13` — any Python 3.11+ release works.
+  </Step>
+
+  <Step title="Activate the virtual environment">
+    ```powershell
+    venv\Scripts\Activate.ps1
+    ```
+    If PowerShell blocks script execution, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` first, or use the launcher's `-ExecutionPolicy Bypass` pattern shown above.
+  </Step>
+
+  <Step title="Install dependencies">
+    ```powershell
+    pip install -r requirements.txt
+    ```
+  </Step>
+
+  <Step title="Run first-time setup">
+    ```powershell
+    python setup.py
+    ```
+  </Step>
+
+  <Step title="Start the server">
+    ```powershell
+    python -m uvicorn app:app --host 127.0.0.1 --port 7000
+    ```
+  </Step>
+</Steps>
+
+## What Works Natively on Windows
+
+<CardGroup cols={2}>
+  <Card title="Fully supported natively" icon="circle-check">
+    - Chat (all API providers)
+    - Agent with MCP and tools
+    - Memory and skills
+    - Documents editor
+    - Email (IMAP/SMTP)
+    - Calendar (CalDAV)
+    - Deep Research
+    - Compare
+    - Notes and Tasks
+  </Card>
+  <Card title="Needs WSL2 or Linux" icon="circle-xmark">
+    - vLLM GPU serving
+    - SGLang GPU serving
+
+    For local GPU model inference on Windows, [Ollama](https://ollama.com/download) is the recommended path — point Odysseus at `http://localhost:11434/v1` in **Settings** and Ollama handles the rest.
+  </Card>
+</CardGroup>
+
+## Local GPU Models on Windows
+
+vLLM and SGLang require Linux or WSL2. For local model serving on Windows without WSL2, use Ollama:
+
+1. Download and install [Ollama for Windows](https://ollama.com/download)
+2. In Odysseus, open **Settings** and add a new provider endpoint: `http://localhost:11434/v1`
+3. Odysseus will discover available models from Ollama automatically
+
+Cookbook's **Serve** workflow is a separate path that downloads and serves models through llama.cpp — on Windows this currently requires WSL2 for GPU builds.
+
+## Troubleshooting
+
+**Wrong Python version selected**
+
+If `python` on your PATH points to an older interpreter, use `py` with an explicit version tag for the venv creation step:
+
+```powershell
+py -3.12 -m venv venv
+```
+
+The `py` launcher (installed with the Python Windows installer) lets you pick a specific version even if multiple are installed.
+
+**`.env` file encoding**
+
+If you edit `.env` using Notepad, save it as **UTF-8 without BOM** (in Notepad, choose *Save As* → *Encoding: UTF-8*). Odysseus handles BOM-encoded files internally, but saving without BOM avoids any edge-case issues with other tooling.
+
+**`venv\Scripts\Activate.ps1` is blocked**
+
+Run this once in PowerShell to allow local script execution:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Or always use the launcher's `-ExecutionPolicy Bypass` flag, which does not change your system policy.
+
+**Port 7000 is already in use**
+
+Pass a different port to the launcher:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\launch-windows.ps1 -Port 7001
+```
+
+Or set `APP_PORT=7001` in `.env` if using Docker.
+
+## Next Steps
+
+- **Configure models and providers** — open **Settings** after first boot
+- **Expose Odysseus over HTTPS on your LAN** — see [HTTPS & Network](/deployment/https-network)
+- **Use Docker instead** — see [Deploy with Docker Compose](/deployment/docker)

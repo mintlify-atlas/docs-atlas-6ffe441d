@@ -1,0 +1,108 @@
+---
+title: "Connect Local and Cloud Model Providers to Odysseus"
+sidebarTitle: "Model Providers"
+description: "Add Ollama, vLLM, llama.cpp, OpenAI, OpenRouter, or GitHub Copilot to Odysseus by entering an OpenAI-compatible endpoint URL in Settings."
+---
+
+Odysseus connects to any OpenAI-compatible endpoint. Providers are managed inside the app — you add a base URL and an optional API key through the Settings UI, and Odysseus probes the endpoint, discovers the available models, and starts serving them in every picker immediately. The `.env` file is only needed for deployment-level overrides and pre-seeding credentials before first boot; for day-to-day use, prefer adding providers in the app.
+
+## How to add a provider
+
+<Steps>
+  <Step title="Open Settings">
+    Navigate to **Settings → Models → Add Endpoint**.
+  </Step>
+  <Step title="Enter the base URL">
+    Paste the OpenAI-compatible base URL for your provider (see the reference table below). Do not include `/chat/completions` — Odysseus appends the correct path automatically.
+  </Step>
+  <Step title="Add an API key (if required)">
+    For cloud providers paste your API key. For local providers running on your own machine no key is needed.
+  </Step>
+  <Step title="Save">
+    Odysseus probes the endpoint, caches the model list, and makes the models available across Chat, Agent, Deep Research, and Compare immediately.
+  </Step>
+</Steps>
+
+## Provider reference
+
+<Tip>
+  The Cookbook can download models and start a local vLLM or llama.cpp server for you automatically, handling port selection and GPU setup. If you want to serve a local model, try Cookbook first — it registers the endpoint in Settings on its own.
+</Tip>
+
+| Provider | Base URL | API Key |
+|---|---|---|
+| **Ollama** (native install) | `http://localhost:11434/v1` | None |
+| **Ollama** (Docker — host machine) | `http://host.docker.internal:11434/v1` | None |
+| **vLLM** | `http://localhost:8000/v1` | None (configurable port) |
+| **llama.cpp server** | `http://localhost:8080/v1` | None |
+| **LM Studio** | `http://localhost:1234/v1` | None |
+| **OpenAI** | `https://api.openai.com/v1` | `OPENAI_API_KEY` from [platform.openai.com](https://platform.openai.com) |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | API key from [openrouter.ai](https://openrouter.ai) |
+| **GitHub Copilot** | — | Handled via the separate Copilot integration flow |
+
+## Docker and Ollama on the host
+
+When Odysseus runs inside Docker and Ollama runs on your host machine (the most common setup on Windows and macOS), the correct endpoint URL is:
+
+```text
+http://host.docker.internal:11434/v1
+```
+
+Ollama must also be listening on all interfaces, not just its own loopback. Start it with:
+
+```bash
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+```
+
+This connects Odysseus (inside the container) to an Ollama server running on the host machine. `host.docker.internal` is Docker's built-in hostname that resolves to the host from inside any container.
+
+<Note>
+  `host.docker.internal` is only available inside Docker. For native installs use `http://localhost:11434/v1` as usual.
+</Note>
+
+## LM Studio in Docker
+
+LM Studio must be configured to serve on all interfaces (not just `localhost`) before Odysseus can reach it from inside Docker. In LM Studio's server settings, change the bind address to `0.0.0.0`, then use:
+
+```text
+http://host.docker.internal:1234/v1
+```
+
+## Model discovery
+
+Odysseus scans common local model-server ports automatically, including Ollama's `11434` and vLLM/llama.cpp defaults in the `8000–8020` range. To point it at additional hosts (remote servers, Tailscale peers, etc.) set `LLM_HOSTS` in `.env`:
+
+```bash
+# .env
+LLM_HOSTS=llm-host.local,backup-llm.local
+```
+
+Multiple hosts are comma-separated. Odysseus always includes the primary `LLM_HOST` alongside any extra hosts you list.
+
+## Pre-seeding with .env
+
+You can pre-seed the OpenAI API key in `.env` so it is available before first boot. This is useful for automated or container deployments:
+
+```bash
+# .env — only needed for pre-seeding; prefer adding in-app
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+<Warning>
+  Do not commit real API keys to version control. The `.env` file is gitignored by default. Only use this for deployment-level configuration, not routine key management.
+</Warning>
+
+## Custom CA certificates (LLM_CA_BUNDLE)
+
+If your provider uses a TLS certificate that is not in the default system trust store — for example, an on-premise LLM gateway with an internal corporate CA, or GigaChat which uses a Russian Trusted Root CA — set `LLM_CA_BUNDLE` to a PEM file containing the missing root certificate(s):
+
+```bash
+# .env
+LLM_CA_BUNDLE=/etc/odysseus/ca/extra-roots.pem
+```
+
+This bundle is layered on top of the system trust store; TLS verification stays enabled for all hosts. Without it, connections to those providers will fail with `CERTIFICATE_VERIFY_FAILED`.
+
+## GitHub Copilot
+
+GitHub Copilot is handled through a dedicated integration flow separate from the standard endpoint form. Look for the Copilot option in **Settings → Models** — it walks through the authentication steps specific to Copilot's subscription-based API.

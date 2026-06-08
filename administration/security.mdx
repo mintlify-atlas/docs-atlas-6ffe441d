@@ -1,0 +1,162 @@
+---
+title: "Security Hardening and Deployment Best Practices for Odysseus"
+sidebarTitle: "Security"
+description: "Security checklist for Odysseus deployments: authentication, cookie settings, network exposure, data protection, and privilege management."
+---
+
+Odysseus is a self-hosted workspace with privileged local capabilities — shell execution, file read/write, model downloads, web research, email and calendar integrations, API token management, and a credential vault. Treat it the same way you would treat an admin console: keep it behind authentication, keep it off the public internet, and be deliberate about who can access it and which tools they are allowed to use. The sections below cover the most important hardening steps for any deployment.
+
+## Security Checklist
+
+<Steps>
+  <Step title="Keep AUTH_ENABLED=true">
+    `AUTH_ENABLED` defaults to `true` and must stay that way for any deployment reachable over a network. Setting it to `false` removes authentication from every route — there is no middle ground. This setting has no safe use outside a single-developer local machine where network access to port 7000 is physically impossible.
+  </Step>
+
+  <Step title="Keep LOCALHOST_BYPASS=false">
+    `LOCALHOST_BYPASS` is a development-only shortcut that skips auth for requests arriving from the loopback interface. Set it to `false` (the default) everywhere except a machine that is solely yours and never shared. Docker deployments, LAN deployments, and anything behind a reverse proxy must leave this `false`.
+  </Step>
+
+  <Step title="Set SECURE_COOKIES=true when serving over HTTPS">
+    When Odysseus is served behind a reverse proxy or private access gateway that terminates HTTPS, set `SECURE_COOKIES=true` in `.env`. This marks session cookies with the `Secure` flag so browsers will not transmit them over a plain HTTP connection. Leave it `false` for pure-localhost installs where TLS is not in the picture.
+  </Step>
+
+  <Step title="Do not expose to the public internet without HTTPS and a reverse proxy">
+    Odysseus serves plain HTTP on its app port. Do not point a public DNS record directly at that port. Put a reverse proxy or private access gateway in front of it that terminates TLS and requires authentication at the network layer. See the [Private and Proxied Deployments](#private-and-proxied-deployments) section below for the recommended pattern.
+  </Step>
+
+  <Step title="Keep sensitive files out of Git and private shares">
+    The following paths are gitignored by default but easy to accidentally include in a fork or archive. Confirm they are never staged or shared:
+
+    - `.env` — environment variables and secrets
+    - `data/` — databases, uploads, auth/session files, API keys, backups
+    - `logs/` — application logs, which may contain request details
+    - Any local databases, generated media, uploaded files, or model/provider tokens
+
+    Before publishing a fork, run:
+    ```bash
+    git status --short
+    git check-ignore -v .env data/auth.json data/app.db logs/compound.log
+    ```
+  </Step>
+
+  <Step title="Review data/auth.json after first boot">
+    Confirm three things immediately after your first login:
+
+    1. `signup_enabled` is `false` unless you intentionally want open registration.
+    2. Only your own account has `"is_admin": true`.
+    3. Any demo or test accounts are non-admin and have the privileges you intend.
+  </Step>
+
+  <Step title="Rotate any exposed API keys or tokens">
+    If an API key, Odysseus API token, webhook secret, or model provider credential was ever pasted into a shared chat, appeared in a screenshot, showed up in a demo recording, or landed in a log file — rotate it immediately. Treat it as compromised from the moment it left a private context.
+  </Step>
+
+  <Step title="Create separate API tokens per integration">
+    Use one API token per external integration or script. This lets you revoke access for a single consumer without touching others. Delete tokens that are no longer in use.
+  </Step>
+
+  <Step title="Prefer binding to 127.0.0.1">
+    For manual development runs and Docker deployments, keep `APP_BIND=127.0.0.1` (the default). Only change it to `0.0.0.0` when you intentionally want the Odysseus port reachable from other hosts — for example, when routing through a local reverse proxy on a different interface.
+  </Step>
+
+  <Step title="Keep bundled services internal-only">
+    ChromaDB, SearXNG, ntfy, Ollama, vLLM, and llama.cpp all bind to `127.0.0.1` by default in Docker Compose. Keep them that way. Only the authenticated Odysseus web/API entrypoint should be exposed through your trusted proxy or private access layer.
+
+    Common internal-only ports from the default Compose setup:
+
+    | Port | Service |
+    |---|---|
+    | `7000` | Odysseus app |
+    | `8080` | SearXNG |
+    | `8091` | ntfy |
+    | `8100` | ChromaDB |
+    | `11434` | Ollama |
+    | `8000–8020` | Common local model/provider API ports |
+  </Step>
+
+  <Step title="Confirm no private files are staged before publishing a fork">
+    Run this before any `git push` to a public remote:
+    ```bash
+    git status --short
+    git grep -n -I -E "(sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._~+/-]{20,})" \
+      -- . ':!static/lib/**' ':!package-lock.json'
+    ```
+    Only `.env.example`, source, docs, tests, and static assets should ever be committed.
+  </Step>
+</Steps>
+
+## Private and Proxied Deployments
+
+Odysseus serves plain HTTP and is designed to sit behind a private access layer or reverse proxy that handles TLS. The recommended pattern:
+
+<Steps>
+  <Step title="Keep Odysseus on localhost">
+    Run Odysseus bound to `127.0.0.1:7000`. Docker Compose does this by default. For native installs, pass `--host 127.0.0.1` to uvicorn or set `APP_BIND=127.0.0.1` in `.env`.
+  </Step>
+  <Step title="Terminate HTTPS at a reverse proxy or private access gateway">
+    Set up one of the compatible options (see below) to handle TLS certificate management and HTTPS termination in front of Odysseus.
+  </Step>
+  <Step title="Put the Odysseus endpoint behind that layer">
+    Configure the proxy to forward to `http://127.0.0.1:7000`. Set `AUTH_ENABLED=true`, `LOCALHOST_BYPASS=false`, and `SECURE_COOKIES=true` in your `.env`.
+  </Step>
+  <Step title="Keep raw service and model ports internal-only">
+    Do not proxy or forward ChromaDB, SearXNG, ntfy, Ollama, or model API ports through your public-facing layer.
+  </Step>
+</Steps>
+
+Compatible options for the proxy or access layer:
+
+<CardGroup cols={3}>
+  <Card title="Cloudflare Access" icon="cloud">
+    Zero-trust access layer with an additional authentication layer in front of Odysseus.
+  </Card>
+  <Card title="Tailscale" icon="lock">
+    WireGuard-based private network. Expose Odysseus only to devices on your tailnet.
+  </Card>
+  <Card title="Caddy" icon="server">
+    Automatic HTTPS with ACME. Simple reverse proxy config with minimal boilerplate.
+  </Card>
+  <Card title="nginx" icon="server">
+    Full-featured reverse proxy. Pair with Certbot or a managed cert for TLS.
+  </Card>
+  <Card title="Traefik" icon="server">
+    Container-native reverse proxy with automatic Let's Encrypt support.
+  </Card>
+  <Card title="mkcert (LAN/Tailscale)" icon="certificate">
+    Generate locally-trusted certs for LAN or Tailscale IPs when a public CA is not available.
+  </Card>
+</CardGroup>
+
+## Non-Admin User Isolation
+
+Shell execution, file read/write, email send/read, MCP tools, calendar management, token and webhook management, model serving, vault access, and app settings are all **admin-only** by default. Non-admin users get only what their per-user privileges explicitly allow. Review each user's privilege set before sharing a deployment, and keep `can_use_bash` off for any user you do not fully trust.
+
+The tool security layer (`src/tool_security.py`) blocks any tool whose name starts with `mcp__` for non-admin users, regardless of their stored privilege values.
+
+## Prompt Injection Risks
+
+The agent operates on content from a variety of sources, some of which are entirely outside your control: fetched web pages, search results, emails read from an inbox, memories, notes, and user-editable skills. Any of these surfaces can contain text that attempts to redirect the agent's behavior — this is called a prompt injection attack.
+
+Odysseus wraps external content in untrusted-context delimiters (via `src/prompt_security.py`) and includes a system-level policy that instructs the model not to follow instructions embedded in that content. However, this is a mitigation, not a guarantee. For multi-user deployments:
+
+- Review which agent tools are enabled for each user, especially shell, file write, and email send.
+- Be cautious about enabling `can_use_bash` for users who can also supply their own skills, notes, or memories to the agent.
+- Treat skills, notes, and memory content as untrusted input even when written by your own accounts.
+
+## Security Headers
+
+Every Odysseus response includes a standard set of security headers applied by `core/middleware.py`:
+
+| Header | Value |
+|---|---|
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `no-referrer` |
+| `X-Frame-Options` | `DENY` (except tool-render iframes and PDF previews) |
+| `Content-Security-Policy` | Nonce-based `script-src`; `style-src 'unsafe-inline'` is intentionally kept (see source comments) |
+| `Permissions-Policy` | `camera=(), microphone=(self), geolocation=()` |
+| `Strict-Transport-Security` | Set when `X-Forwarded-Proto: https` is detected (i.e. behind a TLS proxy) |
+
+## Further Reading
+
+For a detailed threat model including trust boundaries, known gaps, and the internal tool loopback mechanism, see [`THREAT_MODEL.md`](https://github.com/pewdiepie-archdaemon/odysseus/blob/main/THREAT_MODEL.md) in the repository.

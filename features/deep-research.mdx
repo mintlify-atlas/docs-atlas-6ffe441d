@@ -1,0 +1,96 @@
+---
+title: "Deep Research: Iterative AI-Powered Research Reports"
+sidebarTitle: "Deep Research"
+description: "Odysseus Deep Research runs a multi-step Think→Search→Extract→Synthesize loop, gathering and reading web sources to produce a structured visual report."
+---
+
+Deep Research turns a question into a structured, magazine-quality report by having the LLM drive every decision in a multi-step iterative loop. Adapted from [Tongyi DeepResearch](https://github.com/Alibaba-NLP/DeepResearch) (Alibaba), it goes far beyond a single web search: it plans a research strategy, generates targeted queries, fetches and reads sources, synthesizes findings into an evolving report, and decides when it has enough coverage — all autonomously.
+
+## How it works
+
+Deep Research runs the following loop for up to the configured number of rounds:
+
+```
+Plan → Think → Search → Extract → Synthesize → Decide (continue or stop)
+                 ↑___________________________________|
+```
+
+<Steps>
+  <Step title="Plan">
+    The LLM analyzes your question and creates a research plan: a list of sub-questions to investigate, key topics to cover, and a success criterion describing what a complete answer looks like.
+  </Step>
+  <Step title="Think — generate queries">
+    Based on the plan and what has been gathered so far, the LLM generates 3–4 focused search queries for this round. Later rounds generate targeted follow-up queries to fill gaps identified in earlier synthesis.
+  </Step>
+  <Step title="Search">
+    All queries for the round run in parallel against the configured search provider (SearXNG by default). Top result URLs are collected, deduplicating URLs already visited.
+  </Step>
+  <Step title="Extract">
+    Each URL is fetched and its content is passed to the LLM for extraction. The model identifies evidence relevant to the original question and returns a structured summary with source URL and title. Concurrency is bounded to avoid overwhelming a local model server.
+  </Step>
+  <Step title="Synthesize">
+    The LLM integrates all new findings into the evolving report — removing redundancy, resolving contradictions, maintaining logical flow, and keeping inline source citations.
+  </Step>
+  <Step title="Decide">
+    The LLM evaluates whether the report is comprehensive enough and decides whether to run another round or stop. It considers how many key aspects are covered, whether there are obvious gaps, and whether evidence comes from multiple sources.
+  </Step>
+</Steps>
+
+After the loop ends, a separate **Final Report** pass polishes the synthesis into a well-structured, minimum 1,500-word report with headings, inline citations, and a conclusion that directly answers the question.
+
+## Research categories
+
+Deep Research auto-detects the type of question and adapts the report format:
+
+| Category | Format |
+|---|---|
+| **product** | Ranked list with pros/cons, prices, and a Verdict section |
+| **comparison** | Comparison table plus per-option sections and "Best For" verdicts |
+| **howto** | Quick guide, prerequisites, numbered steps, and Common Mistakes |
+| **factcheck** | Evidence For / Against, Verdict, and Nuance & Caveats sections |
+| **general** | Free-form narrative with headings and inline citations |
+
+## Output
+
+Completed reports appear in the **Deep Research** sidebar and are saved permanently in the Library. Each report includes:
+
+- The full structured report with `##` section headings
+- Inline source citations as clickable links
+- A source list with titles and URLs
+- Research statistics (rounds completed, sources read, queries run, model used, elapsed time)
+
+## Configuration
+
+Research uses the model configured in **Settings → Research Model**. If no research-specific model is set, it falls back to the session model.
+
+Key parameters (configurable in Settings):
+
+| Setting | Description | Default |
+|---|---|---|
+| Research model | Model used for all research LLM calls | Session default |
+| Max rounds | Maximum search-extract-synthesize cycles | 8 |
+| Max time | Wall-clock time limit for the full run | 300 s |
+| Max URLs per round | Sources fetched per round | 3 |
+| Search provider | Provider for research queries (separate from chat search) | SearXNG |
+
+## Starting a research job
+
+You can start a Deep Research job three ways:
+
+1. **From the Deep Research panel** — click **New Research**, type your question, and click **Start**.
+2. **From Agent mode** — say *"research X"* or *"do a deep dive on Y"* and the agent calls `trigger_research` automatically, opening the live progress view.
+3. **From the API** — `POST /api/research/start` with `{ "query": "..." }`.
+
+<Note>
+  Deep Research requires a working web search provider. The bundled Docker Compose stack includes SearXNG on port 8080 and wires it automatically. For native installs, configure SearXNG in **Settings → Search**. See [SearXNG Integration](/integrations/searxng).
+</Note>
+
+<Tip>
+  For best results, use a model with at least 8k context. Research rounds accumulate an evolving report that grows with each synthesis pass — models with short context windows (4k or less) may truncate the report mid-synthesis or fail to generate targeted follow-up queries based on earlier findings.
+
+  A 7B or larger model is recommended. Smaller models can work for simple factual questions but struggle with multi-source synthesis and nuanced stop decisions.
+</Tip>
+
+<Tip>
+  To set up local model serving for Deep Research, see [Cookbook](/features/cookbook). A capable local 7B–14B model (e.g. Qwen3-8B or Llama-3.1-8B) is sufficient for most research tasks.
+</Tip>

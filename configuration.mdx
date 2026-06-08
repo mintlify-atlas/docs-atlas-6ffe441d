@@ -1,0 +1,121 @@
+---
+title: "Configure Odysseus with Environment Variables"
+sidebarTitle: "Configuration"
+description: "All Odysseus deployment settings are controlled via environment variables in .env. Most runtime settings are managed in the app's Settings panel."
+---
+
+The vast majority of Odysseus configuration happens inside the app itself — model providers, email accounts, memory settings, search preferences, notification channels, and per-user privileges are all managed through the **Settings** panel or the `/setup` wizard after first boot. The `.env` file exists for the smaller set of deployment-level concerns: things that must be decided before the server starts, like which address to bind to, where to store data, or what admin password to pre-seed on a fresh Docker deployment.
+
+## .env setup
+
+Copy the example file to create your own `.env`:
+
+```bash
+cp .env.example .env
+```
+
+This step is optional but recommended — it gives you a well-commented template and prevents accidental breakage if the example file is updated. The application runs without a `.env` file using built-in defaults. Edit only the variables you need to change.
+
+<Warning>
+  Never commit `.env` to version control. It is listed in `.gitignore` by default. It may contain API keys, a pre-seeded admin password, or database credentials. Before publishing a fork, run `git status --short` and confirm no private files are staged.
+</Warning>
+
+## Environment variables reference
+
+### LLM configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_HOST` | `localhost` | Primary LLM server hostname or IP. Odysseus constructs API endpoint URLs from this value (e.g. `llm-host.local:8000`). |
+| `LLM_HOSTS` | *(unset)* | Comma-separated list of additional LLM hostnames for multi-server model discovery. Odysseus scans common serve ports on each host, including Ollama's port `11434`. |
+| `OLLAMA_BASE_URL` | *(unset)* | Explicit Ollama base URL. Useful in Docker when Ollama runs on the host: `http://host.docker.internal:11434/v1`. |
+| `LM_STUDIO_URL` | *(unset)* | LM Studio server URL. In Docker, the host LM Studio is reachable here when set to serve on all interfaces (`0.0.0.0`). |
+| `OPENAI_API_KEY` | *(unset)* | OpenAI API key. Only needed if using OpenAI models. Prefer adding providers via the in-app Settings panel unless pre-seeding for automation. |
+| `RESEARCH_LLM_ENDPOINT` | *(unset)* | Explicit LLM endpoint for the deep research service, e.g. `http://localhost:8000/v1/chat/completions`. |
+| `LLM_CA_BUNDLE` | *(unset)* | Path to a PEM file containing extra root CA certificates to layer on top of the system trust store. Useful for corporate LLM gateways or providers with non-standard certificate chains (e.g. GigaChat). Example: `/etc/odysseus/ca/extra-roots.pem`. |
+
+### Search
+
+| Variable | Default | Description |
+|---|---|---|
+| `SEARXNG_INSTANCE` | `http://localhost:8080` | URL of your SearXNG instance. Docker Compose overrides this automatically to `http://searxng:8080` for in-network access between containers. |
+| `SEARXNG_SECRET` | *(generated)* | Optional SearXNG cookie/CSRF secret. If left blank, Docker generates one on first boot and stores it in the `searxng-data` volume. Pin this value only if you need a stable, reproducible secret across recreations. |
+
+### Database
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./data/app.db` | SQLAlchemy database connection string. The default uses an embedded SQLite database under `data/`. Change this to a PostgreSQL URL if you need a multi-process or networked database backend. |
+| `ODYSSEUS_DATA_DIR` | `./data` (repo root) | Relocates the entire `data/` directory — all user data, uploads, settings, auth, cache, and databases — to another path. Useful for keeping data on a separate volume or drive. Example (Windows): `ODYSSEUS_DATA_DIR=C:\path\to\dir`. |
+
+### Auth & security
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH_ENABLED` | `true` | Enable or disable the login requirement. Keep `true` for any network-accessible deployment. Setting this to `false` allows anyone with network access to reach the workspace without credentials. |
+| `APP_BIND` | `127.0.0.1` | Host bind address for the Odysseus web UI in Docker Compose. Keep on loopback unless you intentionally want LAN or reverse-proxy access. Set to `0.0.0.0` only when you have a trusted proxy or private access layer in front. |
+| `APP_PORT` | `7000` | Docker Compose host port for the Odysseus web UI. Change if port `7000` is already in use. |
+| `LOCALHOST_BYPASS` | `false` | Development-only auth bypass for direct loopback requests. Keep `false` for Docker, LAN, and any shared or network-accessible deployment. Tunnel/proxy-forwarded connections are excluded automatically even when this is `true`. |
+| `SECURE_COOKIES` | `false` | Mark session cookies as `Secure`. Set to `true` when Odysseus is served through HTTPS at a trusted reverse proxy or private access gateway. |
+| `ODYSSEUS_ADMIN_PASSWORD` | *(random)* | Pre-seed the admin account password before first boot. If unset, `setup.py` generates a random password and prints it to the terminal. Do not commit a real password to version control. |
+| `ALLOWED_ORIGINS` | `http://localhost,http://127.0.0.1` | Comma-separated list of CORS allowed origins. Restrict to your public origin in production, e.g. `https://odysseus.yourdomain.com`. |
+
+### ChromaDB
+
+| Variable | Default | Description |
+|---|---|---|
+| `CHROMADB_HOST` | `localhost` | ChromaDB service host for vector memory. Docker Compose overrides this to `chromadb` for in-network access. |
+| `CHROMADB_PORT` | `8100` | ChromaDB port. Docker Compose overrides this to `8000` inside the container network. Use `8100` for a manually started ChromaDB container (`docker run -p 8100:8000 chromadb/chroma`). |
+| `CHROMADB_BIND` | `127.0.0.1` | Docker Compose host-port bind address for the ChromaDB container. Defaults to loopback for safety. |
+| `NTFY_BIND` | `127.0.0.1` | Docker Compose host-port bind address for the ntfy notification service. To expose ntfy only on Tailscale, set this to your host's Tailscale IP and update `NTFY_BASE_URL` accordingly. |
+| `NTFY_BASE_URL` | `http://localhost:8091` | Public base URL for the ntfy service as seen by notification subscribers. Update this if you change `NTFY_BIND` or put ntfy behind a reverse proxy. |
+
+### RAG and embeddings
+
+| Variable | Default | Description |
+|---|---|---|
+| `EMBEDDING_URL` | `http://{LLM_HOST}:11434/v1/embeddings` | OpenAI-compatible `/v1/embeddings` endpoint used for vector memory and document RAG. Defaults to the Ollama embedding endpoint on `LLM_HOST`. |
+| `EMBEDDING_API_KEY` | *(unset)* | API key for the embedding endpoint, if one is required. |
+| `EMBEDDING_MODEL` | *(unset)* | Embedding model name to use at the `EMBEDDING_URL` endpoint, e.g. `all-minilm:l6-v2`. Must be available at the configured endpoint. |
+| `FASTEMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Local fallback embedding model using fastembed (ONNX). Used automatically when no HTTP embedding API is reachable. Downloads ~50 MB on first use. |
+| `FASTEMBED_CACHE_PATH` | `~/.cache/fastembed` | Local cache directory for fastembed model files. Defaults to the fastembed library default. Override to store model files on a specific volume. |
+
+### Miscellaneous
+
+| Variable | Default | Description |
+|---|---|---|
+| `CLEANUP_INTERVAL_HOURS` | `24` | How often Odysseus runs its internal cleanup job (removing expired uploads and stale temporary files), in hours. |
+| `ODYSSEUS_INPROCESS_POLLERS` | `1` | Enable (`1`) or disable (`0`) in-process email polling. Set to `0` if you drive polling externally via `scripts/odysseus-mail poll-scheduled` and `scripts/odysseus-mail poll-summary` from cron or systemd to avoid both schedulers racing on the same SQLite database. |
+| `ODYSSEUS_INPROCESS_TASKS` | `1` | Enable (`1`) or disable (`0`) the in-process scheduled-task runner. Set to `0` if an external driver fires scheduled tasks (e.g. a cron job). Calendar reminders are frontend-driven and are not affected by this gate. |
+| `ODYSSEUS_SCRIPT_HOST` | `localhost` | Host used by the built-in `run_script` scheduled-task action. Leave empty, `local`, or `localhost` to run scripts on the app host. Set to an SSH host alias to run scripts remotely. |
+| `ODYSSEUS_CHAT_UPLOAD_MAX_BYTES` | `10485760` | Maximum size in bytes for chat and agent file attachments (default: 10 MB). Raise this for local installs that need to handle large PDFs or text documents. Example: `52428800` = 50 MB. |
+
+### GPU support (Docker Compose)
+
+| Variable | Default | Description |
+|---|---|---|
+| `COMPOSE_FILE` | *(unset — CPU only)* | Colon-separated list of Docker Compose files merged left-to-right. Set to `docker-compose.yml:docker/gpu.nvidia.yml` for NVIDIA GPU passthrough or `docker-compose.yml:docker/gpu.amd.yml` for AMD/ROCm. On Windows, use semicolons instead of colons. |
+| `RENDER_GID` | *(unset)* | Numeric GID of the host's `render` group. Required for AMD/ROCm GPU passthrough. Find it with `getent group render \| cut -d: -f3`. |
+
+<Note>
+  GPU overlays only expose GPU devices to the container. To actually serve models on GPU, you still need to install the CUDA or ROCm userspace inside the container via **Cookbook → Dependencies**. Use `scripts/check-docker-gpu.sh` for a guided NVIDIA setup, or `scripts/check-docker-amd-gpu.sh` for AMD diagnostics.
+</Note>
+
+## In-app settings
+
+Most Odysseus configuration lives inside the app, not in `.env`. After first login, the **Settings** panel (gear icon) and the `/setup` wizard let you configure:
+
+- **Model providers** — LLM endpoints, API keys for OpenAI, OpenRouter, GitHub Copilot, and other providers
+- **Email accounts** — IMAP/SMTP accounts, per-account AI triage rules, spam filtering settings
+- **Memory** — memory injection preferences, vector search thresholds, import/export
+- **Search** — web search provider selection, result count limits
+- **Notifications** — ntfy topics, browser push, email notification channels
+- **Users and access** — admin-only user management, per-user privileges, open signup toggle
+- **API tokens** — create and revoke scoped bearer tokens for external integrations
+- **Backup** — export and import all user data
+
+For multi-user and security-hardened deployments, see [Users & Auth](/administration/users-auth), [API Tokens](/administration/api-tokens), and [Security](/administration/security).
+
+<Tip>
+  On first boot, set `ODYSSEUS_ADMIN_PASSWORD` in `.env` to pre-seed the admin password instead of reading it from the terminal logs. This is especially useful for automated or Docker-based deployments. Without it, a random password is generated and printed once to stdout — if you miss it, delete `data/auth.json` and re-run `python setup.py` to regenerate.
+</Tip>

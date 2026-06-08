@@ -1,0 +1,110 @@
+---
+title: "Odysseus: Self-Hosted AI Workspace for Local Models"
+sidebarTitle: "Introduction"
+description: "Odysseus is a self-hosted AI workspace that runs on your hardware. Chat, agents, deep research, email, calendar, and model management — all private by default."
+---
+
+Odysseus is a self-hosted AI workspace designed to give you the polished experience of ChatGPT or Claude — but running entirely on your own hardware, with your own data. There's no cloud sync, no telemetry, and no third-party access to your conversations. Whether you're chatting with a local Ollama model, running a multi-step research job, managing email with AI triage, or downloading and serving GGUF models directly from the Cookbook, everything happens on the machine you control. Privacy is not a setting you have to configure; it is the default.
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Chat" icon="message" href="/features/chat">
+    Converse with any local or API-hosted model. Supports Ollama, vLLM, llama.cpp, OpenAI, OpenRouter, and GitHub Copilot out of the box.
+  </Card>
+  <Card title="Agent" icon="robot" href="/features/agent">
+    Hand the agent tools — web search, shell, file read/write, memory, skills, and MCP servers — and let it autonomously complete multi-step tasks.
+  </Card>
+  <Card title="Cookbook" icon="book" href="/features/cookbook">
+    Scans your hardware, recommends VRAM-appropriate models, and downloads and serves them in one click. Built on llmfit with GGUF, FP8, and AWQ support.
+  </Card>
+  <Card title="Deep Research" icon="microscope" href="/features/deep-research">
+    Multi-step research runs that gather, read, and synthesize sources into a structured visual report — adapted from Tongyi DeepResearch.
+  </Card>
+  <Card title="Documents" icon="file-lines" href="/features/documents">
+    A multi-tab editor for Markdown, HTML, and CSV where you write and the AI assists. Includes syntax highlighting, AI edits, and inline suggestions.
+  </Card>
+  <Card title="Email & Calendar" icon="envelope" href="/features/email-calendar">
+    IMAP/SMTP inbox with AI triage — urgency flags, auto-tagging, auto-summary, reply drafts, and spam filtering. CalDAV sync with Radicale, Nextcloud, Apple, and Fastmail.
+  </Card>
+  <Card title="Memory & Skills" icon="brain" href="/features/memory-skills">
+    Persistent memory and skills backed by ChromaDB and fastembed. Your agent evolves over time as it learns your preferences and builds a reusable skill library.
+  </Card>
+  <Card title="Notes & Tasks" icon="list-check" href="/features/notes-tasks">
+    Quick notes with reminders, a todo checklist, and cron-style scheduled tasks the agent can act on. Notifications via ntfy, browser, or email.
+  </Card>
+</CardGroup>
+
+## Architecture overview
+
+Odysseus is a FastAPI application with a modular JavaScript frontend. There is no build step — the frontend ships as plain ES modules loaded directly by the browser.
+
+```
+app.py              # FastAPI entry point: registers middleware, mounts routers,
+                    # manages application lifespan (startup/shutdown hooks)
+
+core/               # Cross-cutting infrastructure
+  auth.py           # Session and token authentication (AuthManager)
+  database.py       # SQLAlchemy models and session factory
+  middleware.py     # SecurityHeadersMiddleware, CORS helpers, internal tool token
+  constants.py      # Re-exports from src/constants.py (backward-compat shim)
+
+src/                # Application logic
+  llm_core/         # LLM request routing, streaming, provider normalisation
+  agent_loop/       # Agentic turn loop with tool-call handling
+  agent_tools/      # Tool implementations (bash, file, web, memory, MCP, …)
+  chat_processor/   # Chat history, context trimming, message formatting
+  search/           # Web search integration (SearXNG, DuckDuckGo)
+  config.py         # Pydantic-Settings configuration classes (DataConfig, LLMConfig, …)
+  constants.py      # Single source of truth for paths and env-var defaults
+
+routes/             # FastAPI routers, one file per domain
+  chat_routes.py    # Streaming chat and file-attachment handling
+  session_routes.py # Session CRUD
+  document_routes.py# Artifact / canvas documents
+  memory_routes.py  # Memory read/write/search
+  research_routes.py# Background deep-research tasks
+  email_routes.py   # IMAP/SMTP email management
+  calendar_routes.py# CalDAV calendar sync
+  cookbook_routes.py# Model download and serve management
+  … and more
+
+services/           # Standalone service wrappers
+  docs/             # Personal document indexing
+  memory/           # Vector memory (ChromaDB + fastembed)
+  search/           # SearXNG and web-fetch helpers
+  hwfit/            # Hardware-aware model fitting (Cookbook backend)
+  tts.py            # Text-to-speech provider abstraction
+  stt.py            # Speech-to-text provider abstraction
+  youtube.py        # YouTube transcript integration
+
+static/             # Frontend — no build step required
+  index.html        # Single-page app shell
+  app.js            # Main entry point
+  style.css         # Global styles
+  js/               # Modular ES module components
+```
+
+## Data storage
+
+All user data is stored under the `data/` directory in your Odysseus installation root. This directory is gitignored and never committed to version control.
+
+| Path | Contents |
+|---|---|
+| `data/app.db` | Primary SQLite database — sessions, chat messages, calendar events, scheduled tasks, API tokens |
+| `data/auth.json` | User accounts and password hashes |
+| `data/memory.json` | Agent memory store |
+| `data/memory_vectors/` | ChromaDB-backed vector index for semantic memory search |
+| `data/chroma/` | ChromaDB data for personal document RAG |
+| `data/uploads/` | Chat and agent file attachments |
+| `data/personal_docs/` | Personal document library for RAG indexing |
+| `data/settings.json` | App-level settings (managed via the Settings panel) |
+| `data/skills/` | Agent skill library (SKILL.md files) |
+| `data/deep_research/` | Deep research output reports |
+| `data/generated_images/` | AI-generated image outputs |
+
+You can relocate the entire `data/` directory by setting `ODYSSEUS_DATA_DIR` in your `.env` file before the first boot.
+
+## License and contributing
+
+Odysseus is released under the [MIT License](https://github.com/pewdiepie-archdaemon/odysseus/blob/main/LICENSE). Contributions are welcome — the best entry points are fresh-install testing, provider setup bugs, mobile and editor polish, documentation, and small focused refactors. See [CONTRIBUTING.md](https://github.com/pewdiepie-archdaemon/odysseus/blob/main/CONTRIBUTING.md) for setup instructions, testing guidelines, and pull request conventions.

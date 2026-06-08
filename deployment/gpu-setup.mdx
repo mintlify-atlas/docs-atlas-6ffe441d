@@ -1,0 +1,159 @@
+---
+title: "Enable GPU Passthrough for Odysseus in Docker"
+sidebarTitle: "GPU Setup"
+description: "Configure NVIDIA or AMD GPU passthrough to the Odysseus Docker container so Cookbook can download and serve models using CUDA or ROCm acceleration."
+---
+
+By default, the Odysseus Docker container has no access to your host's GPU. Enabling GPU passthrough lets Cookbook detect your GPU's VRAM, recommend appropriate models, and launch llama.cpp or vLLM with hardware acceleration. Without it, Cookbook sees the CPU (or a wrong device) and model recommendations will not reflect your actual hardware.
+
+Odysseus ships two Compose overlay files — one for NVIDIA and one for AMD/ROCm — that add the necessary device and runtime declarations to the base `docker-compose.yml`. This page explains how to enable them.
+
+<Note>
+  The Odysseus app **never** enables GPU passthrough automatically and **never** edits `.env` on its own. All changes described here are explicit, opt-in steps that you control.
+</Note>
+
+## NVIDIA
+
+### Requirements
+
+- NVIDIA GPU with a working host driver (`nvidia-smi` works on the host)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed and configured on the host
+
+### Step 1 — Diagnose and set up passthrough
+
+The `scripts/check-docker-gpu.sh` script is the recommended starting point. It runs read-only by default and never modifies anything unless you pass explicit flags.
+
+```bash
+# Read-only diagnostic — safe to run at any time
+scripts/check-docker-gpu.sh
+
+# Print the OS-specific install commands without running them
+scripts/check-docker-gpu.sh --print-install-commands
+
+# Install NVIDIA Container Toolkit on Ubuntu/Debian (requires sudo)
+scripts/check-docker-gpu.sh --install-nvidia-toolkit
+
+# After passthrough is confirmed, write COMPOSE_FILE to .env
+scripts/check-docker-gpu.sh --enable-nvidia-overlay
+
+# Full assisted setup — install toolkit, then enable overlay if passthrough works
+scripts/check-docker-gpu.sh --install-nvidia-toolkit --enable-nvidia-overlay
+
+# Same, but skip confirmation prompts (for automated/CI use)
+scripts/check-docker-gpu.sh --install-nvidia-toolkit --enable-nvidia-overlay --yes
+```
+
+The `--enable-nvidia-overlay` flag creates a timestamped `.env.bak.*` backup before making any change, and it is **blocked** if GPU passthrough is not yet working — it will not write to `.env` until `docker run --gpus all ...` succeeds.
+
+### Step 2 — Enable the overlay manually (alternative)
+
+If you prefer to edit `.env` yourself instead of using the script, add:
+
+```bash
+# Linux / macOS
+COMPOSE_FILE=docker-compose.yml:docker/gpu.nvidia.yml
+
+# Windows (semicolons instead of colons)
+COMPOSE_FILE=docker-compose.yml;docker/gpu.nvidia.yml
+```
+
+### Step 3 — Start Odysseus
+
+```bash
+docker compose up -d --build
+```
+
+### Step 4 — Verify GPU access inside the container
+
+```bash
+docker compose exec odysseus nvidia-smi -L
+```
+
+You should see your GPU listed. If you see an error, the overlay is active but passthrough is not working — re-run the diagnostic script.
+
+### Stack-management UIs (Portainer, Coolify, etc.)
+
+These tools often accept only a single Compose file and do not reliably support the `COMPOSE_FILE` overlay mechanism. Use the provided standalone file instead, which bundles the base stack and the NVIDIA settings together:
+
+```
+docker-compose.gpu-nvidia.yml
+```
+
+Point your stack UI at this file. The NVIDIA Container Toolkit must still be installed and configured on the host.
+
+---
+
+## AMD / ROCm
+
+### Requirements
+
+- AMD GPU with ROCm drivers installed on the host (`/dev/kfd` and `/dev/dri` present)
+- Host user in the `video` and `render` groups
+
+### Step 1 — Diagnose passthrough
+
+```bash
+scripts/check-docker-amd-gpu.sh
+```
+
+The AMD script is read-only. It reports whether `/dev/kfd` and `/dev/dri` are accessible and what your `render` group GID is.
+
+### Step 2 — Find your render group GID
+
+```bash
+getent group render | cut -d: -f3
+```
+
+Note the numeric output — you will need it in the next step.
+
+### Step 3 — Enable the overlay
+
+Add the following to `.env`, replacing `989` with the GID from the previous step:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker/gpu.amd.yml
+RENDER_GID=989
+```
+
+### Step 4 — Start Odysseus
+
+```bash
+docker compose up -d --build
+```
+
+### Step 5 — Verify device access inside the container
+
+```bash
+docker compose exec odysseus sh -lc \
+  'test -e /dev/kfd && test -d /dev/dri && ls -l /dev/kfd /dev/dri/renderD*'
+```
+
+You should see `/dev/kfd` and at least one `/dev/dri/renderD*` entry. If not, check group membership and ROCm driver installation on the host.
+
+### Stack-management UIs
+
+For Portainer, Coolify, and similar tools, use the standalone file:
+
+```
+docker-compose.gpu-amd.yml
+```
+
+`RENDER_GID` must still be set in your environment or stack configuration.
+
+---
+
+## Important: Passthrough ≠ Userspace
+
+<Warning>
+  **GPU passthrough confirms Docker can see your GPU. It does not guarantee CUDA or ROCm userspace is working inside the container.**
+
+  The slim Odysseus image does not bundle CUDA libraries or inference engines. After enabling passthrough, you still need to install the appropriate serve engine via **Cookbook → Dependencies** to get GPU-enabled builds of llama.cpp, vLLM, or SGLang.
+
+  **NVIDIA:** If Cookbook logs show `Unable to find cudart library`, `Could NOT find CUDAToolkit`, `CUDA Toolkit not found`, or show tensors/layers assigned to CPU — that is a Cookbook or llama.cpp CUDA build issue, not a passthrough failure. Re-install the serve engine via **Cookbook → Dependencies** to get a CUDA-enabled build.
+
+  **AMD:** Seeing `/dev/kfd` and `/dev/dri` inside the container confirms device passthrough, not ROCm userspace. `rocm-smi` and `rocminfo` are not present in the slim Odysseus image. ROCm-enabled builds of vLLM or llama-cpp-python must be installed via **Cookbook → Dependencies**.
+</Warning>
+
+## Apple Silicon / macOS
+
+GPU passthrough for Docker is not applicable on macOS — Docker runs inside a Linux VM with no access to the Metal GPU. For Apple Silicon GPU acceleration, run Odysseus natively using `./start-macos.sh`. See [Linux & macOS](/deployment/linux-macos) for details.

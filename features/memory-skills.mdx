@@ -1,0 +1,119 @@
+---
+title: "Persistent Memory and Agent Skills in Odysseus"
+sidebarTitle: "Memory & Skills"
+description: "Odysseus Memory stores facts and context in ChromaDB using vector and keyword retrieval. Skills are reusable prompt templates that teach the agent new behaviors."
+---
+
+Odysseus Memory gives the agent a persistent understanding of who you are, what you prefer, and what context matters for your work. Skills let you codify recurring procedures — the agent consults them automatically whenever a request matches, so it can reliably repeat complex multi-step workflows without you re-explaining them every time. Together, Memory and Skills make the agent progressively better at being useful to you specifically.
+
+## Memory
+
+Memory is backed by [ChromaDB](https://www.trychroma.com/) (vector store) and a keyword-similarity index. When a new chat message arrives, Odysseus retrieves memories relevant to the query and injects them as context before the LLM responds — silently, without adding them to the visible conversation.
+
+### What gets stored
+
+The agent stores things the user tells it explicitly:
+
+- **Identity facts** — "My name is Alex", "I live in Stockholm", "Call me by my first name"
+- **Preferences** — "I prefer concise replies", "I use Python 3.12", "I work on a MacBook"
+- **Project context** — "The project repo is at ~/code/myapp"
+- **Contacts** — names and email addresses associated with people you work with
+
+Facts are categorized (`identity`, `preference`, `fact`, `contact`, `project`, `goal`) and can be pinned to always appear in context regardless of query relevance.
+
+### How retrieval works
+
+Odysseus uses two complementary retrieval paths:
+
+1. **Vector retrieval (ChromaDB + fastembed)** — embeddings-based semantic search finds memories conceptually related to the current query, even if they don't share exact keywords.
+2. **Keyword retrieval** — a Jaccard token-similarity fallback that boosts identity, contact, preference, and task memories when the query matches known signal words.
+
+Both paths run on every chat turn. The top matches are injected into the system prompt for that turn and the `uses` counter on each memory is incremented.
+
+### fastembed and the embedding model
+
+Odysseus uses [fastembed](https://github.com/qdrant/fastembed) for local embedding generation. fastembed runs ONNX models and does not require PyTorch or CUDA.
+
+<Tip>
+  The first time you enable Memory, fastembed downloads the default embedding model (~50 MB). Subsequent runs use the cached model with no network access required. Expect a brief pause on first startup after enabling Memory.
+</Tip>
+
+### Remote embeddings
+
+To use a remote OpenAI-compatible embeddings endpoint instead of the local fastembed model:
+
+```bash
+# .env
+EMBEDDING_URL=https://api.openai.com/v1   # or your custom embeddings server
+```
+
+When `EMBEDDING_URL` is set, Odysseus sends embedding requests there. Leave it unset to use fastembed locally.
+
+To change the local fastembed model:
+
+```bash
+FASTEMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+### Memory management
+
+The **Brain** panel (the brain icon in the sidebar) shows all stored memories with timestamps, categories, and use counts. From here you can:
+
+- **Add** a memory manually with a free-text entry
+- **Edit** or **delete** any memory
+- **Pin** a memory to force it into every conversation's context
+- **Search** across all memories by keyword
+- **Export** all memories as a JSON file for backup
+- **Import** memories from a JSON export or from an uploaded document (PDF, TXT, Markdown — the LLM extracts facts automatically)
+- **Audit/tidy** — deduplicates and consolidates memories via an LLM pass
+
+### ChromaDB conflict note
+
+Odysseus requires the full `chromadb` package — not the lightweight `chromadb-client`. If both are installed, ChromaDB silently falls back to HTTP-only mode and fails.
+
+<Warning>
+  If you see ChromaDB errors in the logs, check whether `chromadb-client` is installed alongside `chromadb`:
+
+  ```bash
+  ./venv/bin/pip uninstall chromadb-client -y
+  ./venv/bin/pip install --force-reinstall chromadb
+  ```
+
+  The Docker Compose stack handles this correctly; this only affects native installs where dependencies may conflict.
+</Warning>
+
+---
+
+## Skills
+
+Skills are reusable procedures that teach the agent how to handle specific tasks reliably. A Skill is a structured document (in SKILL.md format) that includes:
+
+- A **name** and **description** (used for matching)
+- **When to use** — a sentence describing which requests should trigger this skill
+- **Procedure** — numbered steps the agent follows
+- **Pitfalls** — known failure modes and how to avoid them
+
+### How Skills work
+
+At the start of each agent turn, Odysseus matches the user's message against the skill catalog using token-similarity scoring. The top matching Skills are injected into context alongside the system prompt, so the agent consults the procedure before deciding how to act.
+
+If the agent fails a task and a more capable model (the "teacher") succeeds, the teacher's solution is automatically saved as a **draft Skill** — so on the next similar request, the student model has the proven procedure available. Draft skills are marked `(draft)` in the skill index until manually published.
+
+### Managing Skills
+
+Open the **Skills** panel from the sidebar (or ask the agent to "open skills"). From the UI you can:
+
+- **Browse** the skill catalog by category
+- **View** a full SKILL.md with procedure and pitfall details
+- **Add** a new skill manually
+- **Edit** an existing skill
+- **Delete** a skill
+- Set the **confidence threshold** for auto-injecting draft skills
+
+The agent can also manage skills directly:
+
+```
+manage_skills action=list
+manage_skills action=view name=my-skill-name
+manage_skills action=add name=new-skill ...
+```

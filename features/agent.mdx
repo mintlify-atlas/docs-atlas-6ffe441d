@@ -1,0 +1,104 @@
+---
+title: "Autonomous Agent Mode with MCP Tool Support"
+sidebarTitle: "Agent"
+description: "Odysseus Agent is a multi-round autonomous loop that uses tools — web search, shell, files, memory, and MCP servers — to complete complex tasks end-to-end."
+---
+
+Odysseus Agent is a multi-round autonomous loop that can plan and execute complex tasks without you hand-holding every step. Built on the same foundation as [opencode](https://github.com/anomalyco/opencode) and the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), Agent mode goes far beyond single-turn chat: it calls tools, reads results, adjusts its approach, and keeps iterating until the task is genuinely complete — or it tells you plainly why it can't proceed.
+
+## How the loop works
+
+When you send a message in Agent mode, the loop runs like this:
+
+1. **LLM decides** — The model reads the conversation history and your request. If it needs to take an action, it emits a fenced code block (or a native function call) specifying which tool to use and with what arguments.
+2. **Tool executes** — Odysseus intercepts the tool block, executes it (shell command, web search, file write, etc.), and captures the result.
+3. **Result fed back** — The tool output is appended to the message history and the model generates its next response.
+4. **Repeat** — The loop continues for up to 50 rounds (configurable) until the model signals it is done, hits the tool budget, or encounters an unrecoverable blocker.
+
+The model can use multiple tool calls per round, and all tool activity is shown live in the chat as expandable tool bubbles.
+
+## Built-in tools
+
+The following tools are available to the agent by default. Which tools appear in any given turn is determined by a RAG-based retrieval step that selects only the tools relevant to your request — keeping the context lean for smaller models.
+
+<AccordionGroup>
+  <Accordion title="web_search — Search the web" icon="magnifying-glass">
+    Runs a query against the configured SearXNG instance and returns ranked results. Used for current information, fact-checking, and research tasks. For multi-step research jobs, use the `trigger_research` tool instead (which kicks off a Deep Research job).
+  </Accordion>
+  <Accordion title="web_fetch — Fetch a URL" icon="globe">
+    Fetches and reads the text content of a specific URL. Useful when the agent already has a URL and needs the full page content.
+  </Accordion>
+  <Accordion title="bash — Run shell commands" icon="terminal">
+    Executes shell commands with a 60-second timeout and a 10,000-character output limit. Long-running commands can be run in the background with the `#!bg` prefix. Only available to users with the shell privilege (admins by default).
+  </Accordion>
+  <Accordion title="python — Execute Python code" icon="code">
+    Runs arbitrary Python in the server process. Useful for computation, data processing, and scripting. Subject to the same privilege controls as bash.
+  </Accordion>
+  <Accordion title="read_file / write_file / edit_file — File access" icon="file">
+    Read existing files, write new files, or make precise find-and-replace edits to existing files. Write and edit show a before/after diff in the tool bubble. File access is subject to the configured workspace, when one is set.
+  </Accordion>
+  <Accordion title="create_document / edit_document / update_document — Document editor" icon="pen-to-square">
+    Create and edit documents in the Odysseus document editor panel, with full version history. Long-form content (code, reports, essays) goes here rather than the chat window.
+  </Accordion>
+  <Accordion title="manage_memory — Read and write persistent memory" icon="brain">
+    Store and retrieve facts, preferences, and context in the ChromaDB vector store. Memory persists across sessions and is surfaced automatically when relevant.
+  </Accordion>
+  <Accordion title="manage_skills — Invoke reusable prompt templates" icon="book">
+    List, view, and invoke Skills — reusable procedures the agent has learned. Skills are automatically matched to relevant requests and injected into context at the start of each turn.
+  </Accordion>
+  <Accordion title="manage_tasks — Create scheduled background tasks" icon="clock">
+    Create cron-style tasks that run automatically on a schedule, with the agent acting on them. For recurring jobs like "summarize my inbox every morning."
+  </Accordion>
+  <Accordion title="manage_notes — Notes and reminders" icon="note-sticky">
+    Create, read, and update notes, checklists, and timed reminders. Notes are distinct from memory — they are user-visible items, not internal context.
+  </Accordion>
+  <Accordion title="manage_calendar — Calendar events" icon="calendar">
+    Create, list, update, and delete calendar events via the CalDAV-backed local calendar.
+  </Accordion>
+  <Accordion title="Email tools — list_emails, read_email, send_email, reply_to_email, and more" icon="envelope">
+    Full email access: list, read, send, reply, archive, delete, and bulk-operate on messages across configured IMAP/SMTP accounts.
+  </Accordion>
+</AccordionGroup>
+
+## Plan mode
+
+Agent requests can be sent in **Plan mode**: the agent investigates the task with read-only tools and produces a GitHub-style checklist plan before executing anything. Once you review and approve the plan, the agent works through each step in order, ticking items off and keeping the plan window updated live.
+
+<Note>
+  In Plan mode all write-capable tools are disabled for the planning turn. The agent can read files, search the web, and browse the project, but it cannot write files, run destructive commands, or make API calls that modify state.
+</Note>
+
+## MCP tool integration
+
+In addition to built-in tools, the agent can use any tool exposed by a connected MCP server. This includes the bundled browser MCP (`@playwright/mcp`) for page navigation and screenshots, as well as any custom MCP server you register.
+
+MCP tools are discovered automatically at startup and appear in the agent's tool repertoire alongside the built-in set. For setup instructions see [MCP Servers](/integrations/mcp-servers).
+
+## Permissions and privilege controls
+
+Tool access is gated per user:
+
+| Tool | Default (non-admin) | Admin |
+|---|---|---|
+| `bash` / `python` (shell) | ❌ | ✅ |
+| `read_file` / `write_file` | ❌ | ✅ |
+| `web_search`, `web_fetch` | ✅ | ✅ |
+| `manage_memory` | ✅ | ✅ |
+| `create_document` | ✅ | ✅ |
+| MCP server tools | ❌ | ✅ |
+
+Administrators can grant per-user privileges from the user management panel. See [Users & Auth](/administration/users-auth) for details.
+
+<Warning>
+  The `bash` tool gives the agent real, unrestricted shell access to the server the agent runs on. Only grant shell privileges to users you trust completely. Never expose Odysseus to the public internet without authentication enabled.
+</Warning>
+
+## Tips for small models
+
+Smaller models (4k–16k context) work best with Agent mode when:
+
+- The task is scoped tightly to a single goal per message.
+- You disable tools that aren't needed (Settings → Agent Tools toggles) to reduce the system prompt size.
+- You avoid very long document attachments; the context budget is shared between the system prompt, tool descriptions, and conversation history.
+
+Models with fewer than 7B parameters may struggle to reliably emit tool calls. A 7B+ model is the practical minimum for autonomous multi-step tasks.

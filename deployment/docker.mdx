@@ -1,0 +1,138 @@
+---
+title: "Deploy Odysseus with Docker Compose"
+sidebarTitle: "Docker"
+description: "Run Odysseus and its bundled services (ChromaDB, SearXNG, ntfy) with a single docker compose up command. Recommended for most deployments."
+---
+
+Docker is the recommended way to run Odysseus for most users. A single `docker compose up -d --build` command brings up the full stack: the Odysseus web UI, ChromaDB for vector memory, SearXNG for private web search, and ntfy for push notifications — all bound to `127.0.0.1` by default so nothing is exposed to your LAN until you explicitly opt in.
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/engine/install/) with the Compose plugin (bundled with Docker Desktop; on Linux install `docker-compose-plugin`)
+- Git
+
+## Quickstart
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+    cd odysseus
+    ```
+  </Step>
+
+  <Step title="Copy the example environment file (recommended)">
+    ```bash
+    cp .env.example .env
+    ```
+    The defaults in `.env.example` work out of the box. Copying it gives you a single place to override ports, bind addresses, and other deployment-level settings without editing the example in place.
+  </Step>
+
+  <Step title="Build and start the stack">
+    ```bash
+    docker compose up -d --build
+    ```
+    On first boot, Compose builds the Odysseus image, pulls ChromaDB, SearXNG, and ntfy, and starts all four services. SearXNG takes a moment to pass its health check — Odysseus waits for it automatically before starting.
+  </Step>
+
+  <Step title="Open the web UI">
+    Once the containers are healthy, open:
+
+    ```
+    http://localhost:7000
+    ```
+
+    If port `7000` is already taken on your machine, set `APP_PORT=7001` (or any free port) in `.env` and re-run `docker compose up -d`.
+  </Step>
+
+  <Step title="Find your initial admin password">
+    On first boot, Odysseus creates an `admin` account and prints a one-time password in its logs:
+
+    ```bash
+    docker compose logs odysseus | grep -i password
+    ```
+
+    Use that password for your first login, then change it in **Settings**. To pre-seed a password before first boot, set `ODYSSEUS_ADMIN_PASSWORD` in `.env`.
+  </Step>
+</Steps>
+
+## Exposed Ports
+
+All services bind to `127.0.0.1` (loopback) by default, so they are reachable from the host machine but not visible on your LAN or the public internet.
+
+| Port | Service | Notes |
+|------|---------|-------|
+| `7000` | Odysseus web UI | Controlled by `APP_BIND` and `APP_PORT` in `.env` |
+| `8080` | SearXNG | Private web search; bound to `127.0.0.1` |
+| `8091` | ntfy | Push-notification broker; bind controlled by `NTFY_BIND` |
+| `8100` | ChromaDB (host port) | Maps to internal port `8000`; bind controlled by `CHROMADB_BIND` |
+
+To change the Odysseus bind address set `APP_BIND=0.0.0.0` in `.env` — do this only when you intentionally want LAN or reverse-proxy access. See [HTTPS & Network](/deployment/https-network) for security guidance before doing so.
+
+## Optional Extras
+
+The default image includes only the MIT-licensed core. To build with optional extras — a PDF side-viewer panel and Office/EPUB document extraction — pass `INSTALL_OPTIONAL=true` as a build argument:
+
+```bash
+docker compose build --build-arg INSTALL_OPTIONAL=true
+docker compose up -d
+```
+
+<Warning>
+  The optional PDF viewer (`PyMuPDF`) is licensed under **AGPL-3.0**. If AGPL is incompatible with your use case, do not set `INSTALL_OPTIONAL=true`. The core Odysseus image is MIT-licensed.
+</Warning>
+
+## Maintenance Commands
+
+```bash
+# Check the status of all containers
+docker compose ps
+
+# Tail the last 120 log lines from Odysseus
+docker compose logs --tail=120 odysseus
+
+# Check ChromaDB/memory startup state
+docker compose logs odysseus | grep -E 'ChromaDB|MemoryVectorStore|DEGRADED'
+
+# Restart the Odysseus container (e.g. after changing .env)
+docker compose restart odysseus
+
+# Restart the full stack
+docker compose restart
+```
+
+## Data Persistence
+
+All user data — the SQLite database, uploads, memory, model cache, installed serve engines, and SSH keys — is stored in the `./data/` directory on your host, mounted into the container as a bind volume. The `./logs/` directory is also persisted. Container recreation, image rebuilds, and `docker compose down` do not delete this data.
+
+```
+./data/
+├── app.db            # Sessions, messages, documents
+├── auth.json         # User accounts and privileges
+├── settings.json     # App settings
+├── uploads/          # File attachments
+├── personal_docs/    # Indexed personal documents
+├── chroma/           # ChromaDB vector store
+├── huggingface/      # Model cache (maps to ~/.cache/huggingface in container)
+├── local/            # Cookbook-installed serve engines (maps to ~/.local)
+└── ssh/              # SSH identity for Cookbook remote servers
+```
+
+<Note>
+  `./data/` and `./logs/` are Git-ignored by default. Keep them out of any forks or public repositories.
+</Note>
+
+## Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Compose rebuilds the Odysseus image with the latest code and restarts only the containers that changed. Your `./data/` directory is untouched.
+
+## Next Steps
+
+- **Connect a local GPU for model serving** — see [GPU Setup](/deployment/gpu-setup)
+- **Expose Odysseus over HTTPS** — see [HTTPS & Network](/deployment/https-network)
+- **Add models and providers** — open **Settings** or **Cookbook** inside the app

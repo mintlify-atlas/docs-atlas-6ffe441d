@@ -1,72 +1,79 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Odysseus",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#4F7CFF",
+    "light": "#EEF2FF",
+    "dark": "#1A1F3C"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/pewdiepie-archdaemon/odysseus"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/pewdiepie-archdaemon/odysseus"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/chat",
+              "features/agent",
+              "features/cookbook",
+              "features/deep-research",
+              "features/documents",
+              "features/email-calendar",
+              "features/memory-skills",
+              "features/notes-tasks"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/linux-macos",
+              "deployment/windows",
+              "deployment/gpu-setup",
+              "deployment/https-network"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/model-providers",
+              "integrations/mcp-servers",
+              "integrations/searxng",
+              "integrations/email-providers"
+            ]
+          },
+          {
+            "group": "Security & Administration",
+            "pages": [
+              "administration/users-auth",
+              "administration/api-tokens",
+              "administration/security",
+              "administration/backup-data"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

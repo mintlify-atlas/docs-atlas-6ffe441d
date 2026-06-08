@@ -1,0 +1,118 @@
+---
+title: "Connect MCP Tool Servers to the Odysseus Agent"
+sidebarTitle: "MCP Servers"
+description: "Odysseus supports the Model Context Protocol (MCP). Add custom tool servers so the agent can call external APIs, databases, or services during task execution."
+---
+
+The Odysseus agent can call tools beyond its built-in shell, file, web, and code capabilities. [Model Context Protocol](https://modelcontextprotocol.io) (MCP) is the standard plugin interface for this — each MCP server exposes a set of typed tools that the agent can invoke by name during a task, passing structured arguments and receiving structured results. Odysseus manages MCP servers as persistent connections; tools from all connected servers appear automatically in the agent's toolset.
+
+## What is MCP?
+
+MCP is an open protocol that defines how an AI agent communicates with external tool servers. Each server exposes a list of tools with JSON Schema inputs. Odysseus connects to servers at startup (or on demand), discovers their tools, and makes those tools available to the LLM via native function calling. The agent sees each tool's name, description, and parameter schema in its system prompt and can call it at any point during a task.
+
+Tool names are namespaced by server: `mcp__{server_id}__{tool_name}`, so tools from different servers never collide.
+
+## Built-in MCP servers
+
+Odysseus ships with several built-in MCP servers that start automatically alongside the app. They run as child processes managed by Odysseus and restart automatically if they crash.
+
+<CardGroup cols={2}>
+  <Card title="Browser" icon="globe">
+    **`@playwright/mcp`** — page navigation, form interaction, screenshots, and vision. Powered by Playwright. Requires a one-time cache step before first use (see below).
+  </Card>
+  <Card title="Memory" icon="brain">
+    **`mcp_servers/memory_server.py`** — persistent memory storage and retrieval. Used by the agent to remember facts across sessions.
+  </Card>
+  <Card title="RAG" icon="database">
+    **`mcp_servers/rag_server.py`** — retrieval-augmented generation over your personal documents and uploaded files via ChromaDB.
+  </Card>
+  <Card title="Image Generation" icon="image">
+    **`mcp_servers/image_gen_server.py`** — generate images from text prompts using your configured image model endpoint.
+  </Card>
+  <Card title="Email" icon="envelope">
+    **`mcp_servers/email_server.py`** — read, search, and send emails through your configured IMAP/SMTP accounts. The agent can triage and reply to email as part of a task.
+  </Card>
+</CardGroup>
+
+## Enabling the Browser MCP
+
+The Browser MCP server uses `@playwright/mcp`, an npm package served via `npx`. On a fresh install the package is not cached, so Odysseus skips it at startup with a log message rather than hanging on a slow download. To enable it, run this once in your terminal:
+
+```bash
+npx -y @playwright/mcp@latest --version
+```
+
+This installs `@playwright/mcp` plus the Playwright browser binaries into the npx cache (~300 MB total). Then **restart Odysseus** — the server will register at startup and its tools will appear in the agent.
+
+<Note>
+  The Browser MCP only starts when its npm package is already cached. If the package is not cached on startup, Odysseus logs a message explaining what to run and continues without it — no crash, no hang.
+</Note>
+
+## Adding a custom MCP server
+
+<Steps>
+  <Step title="Open MCP Settings">
+    Go to **Settings → MCP → Add Server**.
+  </Step>
+  <Step title="Choose a transport">
+    - **stdio** — the most common type. Odysseus launches the server as a child process and communicates over stdin/stdout. Provide the command and any arguments.
+    - **SSE** — server-sent events over HTTP. Provide the server URL.
+    - **Streamable HTTP** — HTTP transport with optional OAuth. Provide the server URL.
+  </Step>
+  <Step title="Enter server details">
+    For `stdio` servers: set the **command** (e.g. `npx`, `python`, `node`) and **args** (e.g. `["-y", "@modelcontextprotocol/server-filesystem", "/home/user/docs"]`). Optionally set environment variables in the **env** field as JSON.
+  </Step>
+  <Step title="Save and connect">
+    Odysseus connects immediately and lists the discovered tools. You can reconnect or disconnect at any time from the MCP settings panel.
+  </Step>
+</Steps>
+
+### Example: filesystem server
+
+```json
+{
+  "name": "Filesystem",
+  "transport": "stdio",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+}
+```
+
+### Example: Python-based server
+
+```json
+{
+  "name": "My Custom Tools",
+  "transport": "stdio",
+  "command": "python",
+  "args": ["/opt/my-tools/server.py"]
+}
+```
+
+## Disabling individual tools
+
+Every tool on an MCP server can be disabled without disconnecting the server. In **Settings → MCP**, open a server and toggle individual tools off. Disabled tools are hidden from the agent's tool list and cannot be called.
+
+This is useful when a server exposes many tools but you only want the agent to use a subset, or when a tool is destructive and you want to prevent accidental use during exploratory tasks.
+
+## Security
+
+<Warning>
+  MCP servers run as child processes with the same permissions as the Odysseus process. A `stdio` server is equivalent to executing an arbitrary binary on your host. Only add MCP servers from sources you trust, and review what commands they run. MCP management is restricted to admin users.
+</Warning>
+
+Key security considerations:
+
+- **Admin-only management.** Only admin accounts can add, remove, enable, or disable MCP servers. Regular users see the tools but cannot manage the servers.
+- **Child processes.** Each `stdio` server runs as a subprocess. It inherits the working directory and any environment variables you explicitly pass in the `env` field plus the Odysseus process environment.
+- **Plan mode gating.** In plan mode, Odysseus automatically blocks MCP tools that are not clearly read-only based on the tool's `readOnlyHint` annotation or, when absent, a heuristic on the tool name's leading verb (e.g. `list_`, `get_`, `search_` are treated as safe).
+- **npx-based servers.** npm packages can be updated by the package registry. Pin a version in the args (e.g. `@playwright/mcp@0.0.27`) if you need reproducible behavior.
+
+## Disabling all built-in MCP servers
+
+If you need to disable all built-in MCP servers — for example, in a restricted deployment — set this environment variable:
+
+```bash
+# .env
+ODYSSEUS_DISABLE_MCP=1
+```

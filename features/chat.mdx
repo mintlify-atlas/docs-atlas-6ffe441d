@@ -1,0 +1,87 @@
+---
+title: "Chat with Local and Cloud Models in Odysseus"
+sidebarTitle: "Chat"
+description: "Odysseus Chat supports streaming conversations with any OpenAI-compatible endpoint. Add Ollama, vLLM, llama.cpp, OpenAI, OpenRouter, or GitHub Copilot with a single URL."
+---
+
+Odysseus Chat is the primary conversation interface, letting you talk to any OpenAI-compatible language model — whether it's running on your own GPU with vLLM, served locally by Ollama or llama.cpp, or accessed via a cloud API like OpenAI, OpenRouter, or GitHub Copilot. All it takes is a base URL and, where required, an API key. Streaming responses, session history, file uploads, saved presets, and a per-chat model switcher are all included out of the box.
+
+## Supported providers
+
+| Provider | Endpoint format |
+|---|---|
+| **vLLM** | `http://localhost:8000/v1` |
+| **llama.cpp** | `http://localhost:8080/v1` |
+| **Ollama** | `http://localhost:11434/v1` |
+| **OpenRouter** | `https://openrouter.ai/api/v1` |
+| **OpenAI** | `https://api.openai.com/v1` |
+| **GitHub Copilot** | `https://api.githubcopilot.com` |
+
+Any endpoint that speaks the OpenAI Chat Completions shape (including LM Studio, Llamafile, and Tabby ML) works the same way — add the base URL and Odysseus discovers available models automatically.
+
+## Features
+
+### Streaming responses
+
+Responses stream token-by-token as they are generated. Token-per-second, input/output token counts, and context-window utilization are shown at the bottom of each message once the stream finishes.
+
+### Session history
+
+Each conversation is saved as a named session. Past sessions are listed in the sidebar, sorted most-recent first, and are fully searchable. You can fork, rename, archive, and truncate sessions from the session menu.
+
+### File uploads (vision and PDF)
+
+You can attach images and PDF documents directly to a chat message. Odysseus sends image files to the model as vision content and extracts text from PDFs for context. The default upload limit is 10 MB per attachment.
+
+The limit is configurable via the environment variable:
+
+```bash
+ODYSSEUS_CHAT_UPLOAD_MAX_BYTES=20971520  # 20 MB
+```
+
+**Supported file types for chat uploads:**
+
+- Images: JPEG, PNG, GIF, WebP (vision-capable models only)
+- Documents: PDF (text extracted and sent as context)
+
+### Presets
+
+Presets are saved combinations of a system prompt and model configuration. Access them from the toolbar above the chat input — click a preset to load it into the current session. Presets let you switch between "Creative Writer", "Code Review", "Concise Assistant", or any custom persona without re-typing a system prompt each time. Create and manage presets in **Settings → Presets**.
+
+### Model switcher
+
+Each session has an independent model selection. Switch models mid-session from the model picker in the chat toolbar — subsequent messages in the same session will use the newly selected model.
+
+## Adding a provider
+
+<Steps>
+  <Step title="Open Settings">
+    Click the gear icon or navigate to **Settings → Models**.
+  </Step>
+  <Step title="Add endpoint">
+    Enter the base URL of your provider (for example, `http://localhost:11434/v1` for Ollama). If the provider requires authentication, paste the API key in the **API Key** field.
+  </Step>
+  <Step title="Select a model">
+    Odysseus queries the endpoint for its model list. Pick a default model from the dropdown, then close Settings. The model is now available in the chat model picker.
+  </Step>
+</Steps>
+
+## Compare mode
+
+The **Compare** tab lets you send the same prompt to two different models side-by-side, with optional blind mode so you can judge responses without knowing which model produced which. See the Compare tab in the main navigation — it pairs naturally with Chat sessions.
+
+---
+
+<Tip>
+  If you run Ollama on the host machine and Odysseus inside Docker, use the special Docker hostname instead of `localhost`:
+
+  ```
+  http://host.docker.internal:11434/v1
+  ```
+
+  Ollama must also be bound to all interfaces for Docker to reach it:
+
+  ```bash
+  OLLAMA_HOST=0.0.0.0:11434 ollama serve
+  ```
+</Tip>
